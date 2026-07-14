@@ -1,0 +1,31 @@
+{
+  "name": "tasklattice",
+  "version": "0.1.1",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "build": "npm run build --workspace @tasklattice/contracts && npm run build --workspace @tasklattice/control && npm run build --workspace @tasklattice/runner",
+    "dev": "npm run dev --workspace @tasklattice/control",
+    "dev:control": "npm run dev --workspace @tasklattice/control",
+    "dev:runner": "npm run dev --workspace @tasklattice/runner",
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "images:build": "npm run images:build:control && npm run images:build:runner && npm run images:build:sandbox",
+    "images:build:control": "docker build -f infra/docker/Dockerfile --target control -t tasklattice-control:0.2.0 .",
+    "images:build:runner": "docker build -f infra/docker/Dockerfile --target runner -t tasklattice-openshell-runner:0.2.0 .",
+    "images:build:sandbox": "bash scripts/build-nemoclaw-sandbox.sh",
+    "k8s:deploy": "bash scripts/deploy-local.sh local",
+    "k8s:install-openshell": "bash scripts/install-openshell-k8s.sh",
+    "k8s:deploy:openshell": "bash scripts/deploy-local.sh openshell",
+    "k8s:delete:openshell": "kubectl delete -k infra/kubernetes/overlays/openshell --ignore-not-found",
+    "k8s:delete": "kubectl delete -k infra/kubernetes/overlays/local --ignore-not-found",
+    "validate:core": "node --env-file-if-exists=.env scripts/validate-core-flow.mjs"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

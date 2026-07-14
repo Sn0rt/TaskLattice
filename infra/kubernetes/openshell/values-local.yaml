@@ -1,0 +1,16 @@
+# Local/development settings. The unauthenticated HTTP gateway must only be
+# exposed inside a trusted local cluster network.
+image:
+  tag: 0.0.82
+
+supervisor:
+  image:
+    tag: 0.0.82
+  sideloadMethod: init-container
+
+server:
+  disableTls: true
+  auth:
+    allowUnauthenticatedUsers: true
+  sandboxNamespace: openshell
+  workspaceDefaultStorageSize: 1Gi

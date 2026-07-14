@@ -1,0 +1,23 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - ../../openshell-runner
+secretGenerator:
+  - name: tasklattice-runtime-runner
+    namespace: tasklattice-sandboxes
+    literals:
+      - token=local-dev-token
+patches:
+  - target:
+      kind: Deployment
+      name: tasklattice-control
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/2/value
+        value: http://tasklattice-openshell-runner:9090
+      - op: add
+        path: /spec/template/spec/containers/0/env/-
+        value:
+          name: TALI_ENABLE_TEST_SEED
+          value: "1"

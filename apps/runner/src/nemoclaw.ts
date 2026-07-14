@@ -1,0 +1,135 @@
+import { spawn } from "node:child_process";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { createDeepSeek } from "@ai-sdk/deepseek";
+import { generateText } from "ai";
+
+export interface ProvisionInput {
+  name: string;
+  provider: "deepseek";
+  model: "deepseek-chat" | "deepseek-reasoner";
+  systemPrompt: string;
+  apiKey?: string;
+}
+
+export interface CommandResult {
+  stdout: string;
+  stderr: string;
+  exitCode: number;
+}
+
+export function onboardCommand(input: ProvisionInput): {
+  args: string[];
+  env: NodeJS.ProcessEnv;
+} {
+  const apiKey = input.apiKey ?? process.env.DEEPSEEK_API_KEY;
+  return {
+    args: [
+      "onboard",
+      "--non-interactive",
+      "--fresh",
+      "--name",
+      input.name,
+      "--agent",
+      "openclaw",
+      "--no-gpu",
+      "--no-sandbox-gpu",
+      "--tool-disclosure",
+      "progressive",
+      "--yes-i-accept-third-party-software",
+    ],
+    env: {
+      ...process.env,
+      NEMOCLAW_PROVIDER: "custom",
+      NEMOCLAW_ENDPOINT_URL:
+        process.env.DEEPSEEK_BASE_URL ?? "https://api.deepseek.com",
+      NEMOCLAW_MODEL: input.model,
+      NEMOCLAW_PREFERRED_API: "completions",
+      NEMOCLAW_WEB_SEARCH_PROVIDER: "none",
+      ...(apiKey ? { COMPATIBLE_API_KEY: apiKey } : {}),
+    },
+  };
+}
+
+export async function verifyDeepSeek(input: ProvisionInput): Promise<void> {
+  if (process.env.DEEPSEEK_VERIFY_ON_CREATE !== "1") return;
+  const apiKey = input.apiKey ?? process.env.DEEPSEEK_API_KEY;
+  if (!apiKey) throw new Error("DEEPSEEK_API_KEY is required.");
+  const provider = createDeepSeek({
+    apiKey,
+    ...(process.env.DEEPSEEK_BASE_URL
+      ? { baseURL: process.env.DEEPSEEK_BASE_URL }
+      : {}),
+  });
+  await generateText({
+    model: provider(input.model),
+    prompt: "Reply with READY only.",
+    maxOutputTokens: 8,
+  });
+}
+
+export async function installAgentInstructions(
+  input: ProvisionInput,
+): Promise<void> {
+  const temporaryDirectory = await mkdtemp(
+    join(tmpdir(), "tasklattice-agent-instructions-"),
+  );
+  const instructionsFile = join(temporaryDirectory, "AGENTS.md");
+  try {
+    const download = await runCommand("nemoclaw", [
+      input.name,
+      "download",
+      "/sandbox/.openclaw/workspace/AGENTS.md",
+      instructionsFile,
+    ]);
+    const existing =
+      download.exitCode === 0
+        ? await readFile(instructionsFile, "utf8").catch(() => "")
+        : "";
+    const separator = existing.trim() ? "\n\n" : "";
+    await writeFile(
+      instructionsFile,
+      `${existing.trimEnd()}${separator}## TaskLattice Agent Instructions\n\n${input.systemPrompt.trim()}\n`,
+      { mode: 0o600 },
+    );
+    const upload = await runCommand("nemoclaw", [
+      input.name,
+      "upload",
+      instructionsFile,
+      "/sandbox/.openclaw/workspace/AGENTS.md",
+    ]);
+    if (upload.exitCode !== 0)
+      throw new Error(
+        upload.stderr.trim() ||
+          "Unable to install Agent instructions in NemoClaw.",
+      );
+  } finally {
+    await rm(temporaryDirectory, { recursive: true, force: true });
+  }
+}
+
+export function runCommand(
+  command: string,
+  args: string[],
+  env: NodeJS.ProcessEnv = process.env,
+): Promise<CommandResult> {
+  return new Promise((resolve, reject) => {
+    const child = spawn(command, args, {
+      env,
+      stdio: ["ignore", "pipe", "pipe"],
+    });
+    let stdout = "";
+    let stderr = "";
+    child.stdout.on("data", (data: Buffer) => {
+      stdout = (stdout + data.toString()).slice(-64_000);
+    });
+    child.stderr.on("data", (data: Buffer) => {
+      stderr = (stderr + data.toString()).slice(-64_000);
+    });
+    child.on("error", reject);
+    child.on("close", (code) =>
+      resolve({ stdout, stderr, exitCode: code ?? 1 }),
+    );
+  });
+}

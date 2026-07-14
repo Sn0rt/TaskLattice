@@ -1,0 +1,77 @@
+import { DatabaseSync } from "node:sqlite";
+import type { Agent } from "@tasklattice/contracts";
+
+export class AgentStore {
+  private readonly database: DatabaseSync;
+
+  constructor(path = process.env.DATABASE_PATH ?? ":memory:") {
+    this.database = new DatabaseSync(path);
+    this.database.exec(`
+      CREATE TABLE IF NOT EXISTS agents (
+        id TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS provider_credentials (
+        provider TEXT PRIMARY KEY,
+        api_key TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+    `);
+  }
+
+  save(agent: Agent): Agent {
+    this.database
+      .prepare(
+        `
+        INSERT INTO agents (id, payload, created_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+      `,
+      )
+      .run(agent.id, JSON.stringify(agent), agent.createdAt);
+    return agent;
+  }
+
+  get(id: string): Agent | undefined {
+    const row = this.database
+      .prepare("SELECT payload FROM agents WHERE id = ?")
+      .get(id) as { payload: string } | undefined;
+    return row ? (JSON.parse(row.payload) as Agent) : undefined;
+  }
+
+  list(): Agent[] {
+    return (
+      this.database
+        .prepare("SELECT payload FROM agents ORDER BY created_at DESC")
+        .all() as Array<{
+        payload: string;
+      }>
+    ).map((row) => JSON.parse(row.payload) as Agent);
+  }
+
+  delete(id: string): void {
+    this.database.prepare("DELETE FROM agents WHERE id = ?").run(id);
+  }
+
+  saveProviderCredential(provider: "deepseek", apiKey: string): void {
+    this.database
+      .prepare(
+        `
+        INSERT INTO provider_credentials (provider, api_key, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(provider) DO UPDATE SET
+          api_key = excluded.api_key,
+          updated_at = excluded.updated_at
+      `,
+      )
+      .run(provider, apiKey, new Date().toISOString());
+  }
+
+  getProviderCredential(provider: "deepseek"): string | undefined {
+    const row = this.database
+      .prepare("SELECT api_key FROM provider_credentials WHERE provider = ?")
+      .get(provider) as { api_key: string } | undefined;
+    return row?.api_key;
+  }
+}
