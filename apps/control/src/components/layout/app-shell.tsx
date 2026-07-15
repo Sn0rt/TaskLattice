@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
   Activity,
@@ -32,9 +33,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
+import { api } from "@/lib/api";
 
 type WorkspaceRoute =
-  | "/api-quota"
+  | "/providers"
   | "/dashboard"
   | "/instances"
   | "/monitor/audit"
@@ -50,9 +52,9 @@ const navGroups: Array<{
   label: string;
 }> = [
   { label: "Overview", items: [[LayoutDashboard, "Workspace", "/dashboard"]] },
-  { label: "API Quota", items: [[Gauge, "Quotas", "/api-quota"]] },
+  { label: "Provider", items: [[Gauge, "Providers", "/providers"]] },
   {
-    label: "Instance",
+    label: "Agent",
     items: [
       [Boxes, "Instances", "/instances"],
       [ShieldEllipsis, "Sandboxes", "/sandboxes"],
@@ -78,7 +80,7 @@ const navGroups: Array<{
 
 const routeLabels: Record<string, string> = {
   agents: "Instances",
-  "api-quota": "API Quota",
+  providers: "Providers",
   dashboard: "Overview",
   instances: "Instances",
   monitor: "Monitor",
@@ -103,12 +105,13 @@ function NavGroup({ children, collapsed, label }: { children: ReactNode; collaps
   );
 }
 
-function NavItem({ active, collapsed, icon: Icon, label, onNavigate, to }: {
+function NavItem({ active, collapsed, icon: Icon, label, onNavigate, runtimeState, to }: {
   active: boolean;
   collapsed: boolean;
   icon: LucideIcon;
   label: string;
   onNavigate: () => void;
+  runtimeState?: { label: string; tone: "danger" | "neutral" | "success" | "warning" };
   to: WorkspaceRoute;
 }) {
   const link = (
@@ -124,8 +127,25 @@ function NavItem({ active, collapsed, icon: Icon, label, onNavigate, to }: {
           : "text-muted-foreground hover:bg-sidebar-accent/65 hover:text-sidebar-foreground",
       )}
     >
-      <Icon className={cn("size-[18px] shrink-0", active && "text-primary")} />
+      <span className="relative shrink-0">
+        <Icon className={cn("size-[18px]", active && "text-primary")} />
+        {runtimeState ? (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "absolute -bottom-1 -right-1 size-2 rounded-full ring-2 ring-sidebar",
+              runtimeState.tone === "success" && "bg-emerald-500",
+              runtimeState.tone === "warning" && "bg-amber-500",
+              runtimeState.tone === "danger" && "bg-destructive",
+              runtimeState.tone === "neutral" && "bg-muted-foreground/50",
+            )}
+          />
+        ) : null}
+      </span>
       {collapsed ? null : <span>{label}</span>}
+      {collapsed || !runtimeState ? null : (
+        <span className="sr-only">OpenShell runtime: {runtimeState.label}</span>
+      )}
     </Link>
   );
   return collapsed ? (
@@ -176,6 +196,21 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const runtime = useQuery({
+    queryKey: ["runtime-status"],
+    queryFn: api.getRuntimeStatus,
+    retry: 1,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+  const openShellRuntime = runtime.isPending
+    ? { label: "Checking", tone: "neutral" as const }
+    : runtime.data?.terminal.available &&
+        runtime.data.terminal.transport === "openshell"
+      ? { label: "Connected", tone: "success" as const }
+      : runtime.error
+        ? { label: "Unavailable", tone: "danger" as const }
+        : { label: "Unavailable", tone: "warning" as const };
   const isActive = (to: WorkspaceRoute) => {
     if (to === "/instances") return pathname === "/instances" || pathname.startsWith("/agents");
     return pathname === to;
@@ -230,9 +265,35 @@ export function AppShell() {
                 icon={Icon}
                 label={label}
                 onNavigate={() => setMobileOpen(false)}
+                {...(to === "/sandboxes" ? { runtimeState: openShellRuntime } : {})}
                 to={to}
               />
             ))}
+            {group.label === "Agent" && !isCollapsed ? (
+              <Link
+                to="/sandboxes"
+                onClick={() => setMobileOpen(false)}
+                className="mx-3 mt-2 block border-l border-sidebar-border py-1.5 pl-3 text-[11px] leading-4 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-sidebar-foreground focus-visible:outline-2"
+                aria-label={`OpenShell runtime ${openShellRuntime.label}. Open Sandboxes.`}
+              >
+                <span className="flex items-center justify-between gap-2">
+                  <span className="font-medium text-sidebar-foreground">OpenShell runtime</span>
+                  <span className="inline-flex items-center gap-1.5">
+                    <span
+                      className={cn(
+                        "size-1.5 rounded-full",
+                        openShellRuntime.tone === "success" && "bg-emerald-500",
+                        openShellRuntime.tone === "warning" && "bg-amber-500",
+                        openShellRuntime.tone === "danger" && "bg-destructive",
+                        openShellRuntime.tone === "neutral" && "bg-muted-foreground/50",
+                      )}
+                    />
+                    {openShellRuntime.label}
+                  </span>
+                </span>
+                <span className="mt-0.5 block">Sandbox execution layer</span>
+              </Link>
+            ) : null}
           </NavGroup>
         ))}
       </nav>

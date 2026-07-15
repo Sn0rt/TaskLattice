@@ -10,7 +10,7 @@ trap 'rm -rf "${TEMP_DIR}"' EXIT
 
 echo "[1/4] Installing Agent Sandbox ${AGENT_SANDBOX_VERSION}"
 kubectl apply -f "https://github.com/kubernetes-sigs/agent-sandbox/releases/download/v${AGENT_SANDBOX_VERSION}/manifest.yaml"
-kubectl -n agent-sandbox-system rollout status deployment/agent-sandbox-controller-manager --timeout=180s
+kubectl -n agent-sandbox-system rollout status deployment/agent-sandbox-controller --timeout=180s
 
 echo "[2/4] Downloading OpenShell ${OPENSHELL_VERSION} Helm chart source"
 curl --fail --location --retry 5 \

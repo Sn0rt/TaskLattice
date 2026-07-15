@@ -52,6 +52,21 @@ export function onboardCommand(input: ProvisionInput): {
   };
 }
 
+export function nemoClawTerminalArguments(name: string): string[] {
+  return [
+    name,
+    "exec",
+    "--tty",
+    "--stdin",
+    "--timeout",
+    "0",
+    "--",
+    "/bin/bash",
+    "-lc",
+    "exec openclaw tui",
+  ];
+}
+
 export async function verifyDeepSeek(input: ProvisionInput): Promise<void> {
   if (process.env.DEEPSEEK_VERIFY_ON_CREATE !== "1") return;
   const apiKey = input.apiKey ?? process.env.DEEPSEEK_API_KEY;

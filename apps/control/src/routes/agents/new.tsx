@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
-import { useMutation } from "@tanstack/react-query";
-import { Bot, Check, Cpu, LockKeyhole, Network, Sparkles } from "lucide-react";
+import { useMutation, useQuery } from "@tanstack/react-query";
+import { Bot, Cpu, LockKeyhole, Network, Sparkles } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { UnavailableAction } from "@/components/shared/unavailable-action";
 import { api } from "@/lib/api";
@@ -29,6 +30,14 @@ import { Textarea } from "@/components/ui/textarea";
 export const Route = createFileRoute("/agents/new")({ component: CreateAgent });
 function CreateAgent() {
   const navigate = useNavigate();
+  const [providerConnectionId, setProviderConnectionId] = useState("");
+  const connections = useQuery({
+    queryKey: ["provider-connections"],
+    queryFn: api.listProviderConnections,
+  });
+  const validatedConnections = (connections.data ?? []).filter(
+    (connection) => connection.status === "VALIDATED",
+  );
   const mutation = useMutation({
     mutationFn: api.createAgent,
     onSuccess: (agent) =>
@@ -39,6 +48,7 @@ function CreateAgent() {
       name: "",
       description: "",
       runtime: "nemoclaw" as const,
+      providerConnectionId: "",
       provider: "deepseek" as const,
       model: "deepseek-chat" as "deepseek-chat" | "deepseek-reasoner",
       systemPrompt:
@@ -46,10 +56,22 @@ function CreateAgent() {
     },
     onSubmit: ({ value }) => mutation.mutateAsync(value),
   });
+  const selectedConnection = validatedConnections.find(
+    (connection) => connection.id === providerConnectionId,
+  );
+
+  useEffect(() => {
+    const first = validatedConnections[0];
+    if (!first || providerConnectionId) return;
+    setProviderConnectionId(first.id);
+    form.setFieldValue("providerConnectionId", first.id);
+    form.setFieldValue("provider", first.provider);
+    form.setFieldValue("model", first.model);
+  }, [form, providerConnectionId, validatedConnections]);
   return (
     <div className="space-y-7">
       <PageHeader
-        eyebrow="Instance / Create"
+        eyebrow="Agent / Instance / Create"
         title="Create Instance"
         badge={<Badge variant="outline">UAT</Badge>}
         description="Define an Agent and provision its NemoClaw runtime Instance. Runtime creation continues asynchronously after submission."
@@ -77,8 +99,8 @@ function CreateAgent() {
           <Separator className="my-4" />
           <div className="rounded-lg bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
             <LockKeyhole className="mb-2 size-4" />
-            Provider credentials are resolved by the Runtime Host and never sent
-            by this form.
+            Credentials remain attached to the selected validated Provider.
+            This form receives only its public identifier.
           </div>
         </aside>
         <form
@@ -176,75 +198,72 @@ function CreateAgent() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-3">
-                      <img
-                        src="/assets/brands/nvidia-logo-square.png"
-                        alt="NVIDIA"
-                        className="h-7 w-12 object-contain object-left"
-                      />
-                      <strong className="text-sm">NemoClaw</strong>
-                    </div>
-                    <Check className="size-4 text-primary" />
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    OpenClaw agent inside an OpenShell sandbox.
-                  </p>
-                </div>
-                <div className="cursor-not-allowed rounded-lg border bg-muted/40 p-4 opacity-45">
-                  <div className="flex items-center justify-between">
-                    <strong className="text-sm">Other runtimes</strong>
-                    <Badge variant="secondary">Unavailable</Badge>
-                  </div>
-                  <p className="mt-2 text-xs leading-5 text-muted-foreground">
-                    Not part of the current core flow.
-                  </p>
-                </div>
-              </div>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div className="space-y-2">
-                  <Label>Provider</Label>
-                  <Select value="deepseek" disabled>
+                  <Label>Agent runtime</Label>
+                  <Select value="nemoclaw">
                     <SelectTrigger>
-                      <SelectValue />
+                      <span className="flex items-center gap-2">
+                        <img src="/assets/brands/nvidia-logo-square.png" alt="" className="size-5 object-contain" />
+                        NemoClaw
+                      </span>
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="deepseek">
-                        DeepSeek · AI SDK
+                      <SelectItem value="nemoclaw">
+                        <span className="flex items-center gap-2">
+                          <img src="/assets/brands/nvidia-logo-square.png" alt="" className="size-5 object-contain" />
+                          <span><strong className="block text-xs">NemoClaw</strong><span className="text-[11px] text-muted-foreground">OpenClaw in OpenShell</span></span>
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="hermes" disabled>
+                        <span className="flex items-center gap-2 opacity-55">
+                          <img src="/assets/brands/hermes-agent-logo.png" alt="" className="size-5 rounded-sm object-contain grayscale" />
+                          <span><strong className="block text-xs">Hermes Agent</strong><span className="text-[11px] text-muted-foreground">Coming later</span></span>
+                        </span>
                       </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-                <form.Field name="model">
-                  {(field) => (
-                    <div className="space-y-2">
-                      <Label>Model</Label>
-                      <Select
-                        value={field.state.value}
-                        onValueChange={(value) =>
-                          field.handleChange(
-                            value as "deepseek-chat" | "deepseek-reasoner",
-                          )
-                        }
-                      >
-                        <SelectTrigger>
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="deepseek-chat">
-                            deepseek-chat
-                          </SelectItem>
-                          <SelectItem value="deepseek-reasoner">
-                            deepseek-reasoner
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  )}
-                </form.Field>
+                <div className="space-y-2">
+                  <Label>Provider connection</Label>
+                  <Select
+                    value={providerConnectionId}
+                    disabled={!validatedConnections.length}
+                    onValueChange={(value) => {
+                      const connection = validatedConnections.find(
+                        (item) => item.id === value,
+                      );
+                      if (!connection) return;
+                      setProviderConnectionId(value);
+                      form.setFieldValue("providerConnectionId", value);
+                      form.setFieldValue("provider", connection.provider);
+                      form.setFieldValue("model", connection.model);
+                    }}
+                  >
+                    <SelectTrigger>
+                      <SelectValue placeholder="Select a validated Provider" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {validatedConnections.map((connection) => (
+                        <SelectItem key={connection.id} value={connection.id}>
+                          {connection.name} · {connection.endpoint} · {connection.model}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
+              {selectedConnection ? (
+                <div className="grid gap-3 border-y py-3 text-xs sm:grid-cols-3">
+                  <div><span className="text-muted-foreground">Endpoint</span><strong className="mt-1 block truncate font-mono">{selectedConnection.endpoint}</strong></div>
+                  <div><span className="text-muted-foreground">Model</span><strong className="mt-1 block">{selectedConnection.model}</strong></div>
+                  <div><span className="text-muted-foreground">Credential</span><strong className="mt-1 block">Stored by platform</strong></div>
+                </div>
+              ) : (
+                <p role="alert" className="border-l-2 border-amber-500 bg-amber-500/5 px-3 py-2 text-xs">
+                  No validated Provider is available. <Link to="/providers" className="font-semibold underline underline-offset-4">Register and validate a connection first.</Link>
+                </p>
+              )}
             </CardContent>
           </Card>
           {mutation.error ? (
@@ -257,17 +276,19 @@ function CreateAgent() {
               selector={(state) => [
                 state.values.name,
                 state.values.systemPrompt,
+                state.values.providerConnectionId,
                 state.canSubmit,
                 state.isSubmitting,
               ]}
             >
-              {([name, systemPrompt, canSubmit, isSubmitting]) => (
+              {([name, systemPrompt, selectedProviderConnectionId, canSubmit, isSubmitting]) => (
                 <Button
                   size="lg"
                   type="submit"
                   disabled={
                     String(name).trim().length < 3 ||
                     String(systemPrompt).trim().length < 10 ||
+                    !String(selectedProviderConnectionId) ||
                     !canSubmit ||
                     Boolean(isSubmitting) ||
                     mutation.isPending
@@ -290,7 +311,7 @@ function CreateAgent() {
               <div className="flex gap-3">
                 <Network className="mt-0.5 size-4 shrink-0 text-primary" />
                 <div>
-                  <strong>Call the Runtime Host</strong>
+                  <strong>Call the OpenShell control plane</strong>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
                     Send a typed provisioning request, never a shell string.
                   </p>
@@ -299,9 +320,9 @@ function CreateAgent() {
               <div className="flex gap-3">
                 <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
                 <div>
-                  <strong>Register DeepSeek</strong>
+                  <strong>Bind the validated Provider</strong>
                   <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Use the compatible endpoint through NemoClaw and OpenShell.
+                    Resolve the selected Pi-validated Provider connection without exposing its credential.
                   </p>
                 </div>
               </div>
@@ -316,7 +337,7 @@ function CreateAgent() {
               </div>
               <Separator />
               <UnavailableAction label="Attach Skills" />
-              <UnavailableAction label="Configure quota" />
+              <UnavailableAction label="Hermes Agent runtime" />
             </CardContent>
           </Card>
         </aside>

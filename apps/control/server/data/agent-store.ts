@@ -1,5 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
-import type { Agent } from "@tasklattice/contracts";
+import type { Agent, ProviderConnection } from "@tasklattice/contracts";
 
 export class AgentStore {
   private readonly database: DatabaseSync;
@@ -16,6 +16,12 @@ export class AgentStore {
         provider TEXT PRIMARY KEY,
         api_key TEXT NOT NULL,
         updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS provider_connections (
+        id TEXT PRIMARY KEY,
+        payload TEXT NOT NULL,
+        api_key TEXT NOT NULL,
+        created_at TEXT NOT NULL
       );
     `);
   }
@@ -52,6 +58,57 @@ export class AgentStore {
 
   delete(id: string): void {
     this.database.prepare("DELETE FROM agents WHERE id = ?").run(id);
+  }
+
+  saveProviderConnection(
+    connection: ProviderConnection,
+    apiKey?: string,
+  ): ProviderConnection {
+    const existingKey = this.getProviderConnectionCredential(connection.id);
+    const credential = apiKey ?? existingKey;
+    if (!credential)
+      throw new Error("An API credential is required for a new provider connection.");
+    this.database
+      .prepare(
+        `
+        INSERT INTO provider_connections (id, payload, api_key, created_at)
+        VALUES (?, ?, ?, ?)
+        ON CONFLICT(id) DO UPDATE SET
+          payload = excluded.payload,
+          api_key = excluded.api_key
+      `,
+      )
+      .run(
+        connection.id,
+        JSON.stringify(connection),
+        credential,
+        connection.createdAt,
+      );
+    return connection;
+  }
+
+  getProviderConnection(id: string): ProviderConnection | undefined {
+    const row = this.database
+      .prepare("SELECT payload FROM provider_connections WHERE id = ?")
+      .get(id) as { payload: string } | undefined;
+    return row ? (JSON.parse(row.payload) as ProviderConnection) : undefined;
+  }
+
+  listProviderConnections(): ProviderConnection[] {
+    return (
+      this.database
+        .prepare(
+          "SELECT payload FROM provider_connections ORDER BY created_at DESC",
+        )
+        .all() as Array<{ payload: string }>
+    ).map((row) => JSON.parse(row.payload) as ProviderConnection);
+  }
+
+  getProviderConnectionCredential(id: string): string | undefined {
+    const row = this.database
+      .prepare("SELECT api_key FROM provider_connections WHERE id = ?")
+      .get(id) as { api_key: string } | undefined;
+    return row?.api_key;
   }
 
   saveProviderCredential(provider: "deepseek", apiKey: string): void {

@@ -1,6 +1,9 @@
 import type {
   Agent,
+  CreateProviderConnectionInput,
   CreateAgentInput,
+  ProviderConnection,
+  RuntimeStatus,
   TerminalSessionResponse,
 } from "@tasklattice/contracts";
 import { clearAuthToken, getAuthToken } from "./auth-token";
@@ -30,9 +33,22 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  listProviderConnections: async () =>
+    (await request<{ data: ProviderConnection[] }>("/api/v1/providers")).data,
+  registerProviderConnection: (input: CreateProviderConnectionInput) =>
+    request<ProviderConnection>("/api/v1/providers", {
+      method: "POST",
+      body: JSON.stringify(input),
+    }),
+  revalidateProviderConnection: (id: string) =>
+    request<ProviderConnection>(`/api/v1/providers/${id}/validate`, {
+      method: "POST",
+      body: "{}",
+    }),
   listAgents: async () =>
     (await request<{ data: Agent[] }>("/api/v1/agents")).data,
   getAgent: (id: string) => request<Agent>(`/api/v1/agents/${id}`),
+  getRuntimeStatus: () => request<RuntimeStatus>("/api/v1/runtime"),
   createAgent: (input: CreateAgentInput) =>
     request<Agent>("/api/v1/agents", {
       method: "POST",

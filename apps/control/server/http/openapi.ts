@@ -9,6 +9,13 @@ const agentId = {
   schema: { type: "string", format: "uuid" },
 } as const;
 
+const providerId = {
+  name: "providerId",
+  in: "path",
+  required: true,
+  schema: { type: "string" },
+} as const;
+
 export const openApiDocument = {
   openapi: "3.1.0",
   info: {
@@ -73,10 +80,40 @@ export const openApiDocument = {
     },
     "/providers": {
       get: {
-        operationId: "listProviders",
-        summary: "List supported model providers",
+        operationId: "listProviderConnections",
+        summary: "List registered model Provider connections",
         responses: {
-          "200": { description: "Provider catalog", ...json({ $ref: "#/components/schemas/ProviderCollection" }) },
+          "200": { description: "Provider connection collection", ...json({ $ref: "#/components/schemas/ProviderConnectionCollection" }) },
+        },
+      },
+      post: {
+        operationId: "registerProviderConnection",
+        summary: "Register and validate a model Provider connection with Pi",
+        requestBody: { required: true, ...json({ $ref: "#/components/schemas/CreateProviderConnectionInput" }) },
+        responses: {
+          "201": { description: "Provider registered with validation result", ...json({ $ref: "#/components/schemas/ProviderConnection" }) },
+          "400": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
+    "/providers/{providerId}/validate": {
+      parameters: [providerId],
+      post: {
+        operationId: "revalidateProviderConnection",
+        summary: "Re-run Pi validation for a stored Provider connection",
+        responses: {
+          "200": { description: "Updated validation result", ...json({ $ref: "#/components/schemas/ProviderConnection" }) },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
+    "/runtime": {
+      get: {
+        operationId: "getRuntimeStatus",
+        summary: "Read NemoClaw TUI runtime capability",
+        responses: {
+          "200": { description: "Runtime capability", ...json({ $ref: "#/components/schemas/RuntimeStatus" }) },
+          "401": { $ref: "#/components/responses/Error" },
         },
       },
     },
@@ -187,11 +224,12 @@ export const openApiDocument = {
       CreateAgentInput: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "runtime", "provider", "model", "systemPrompt"],
+        required: ["name", "runtime", "providerConnectionId", "provider", "model", "systemPrompt"],
         properties: {
           name: { type: "string", minLength: 3, maxLength: 48 },
           description: { type: "string", maxLength: 240, default: "" },
           runtime: { type: "string", const: "nemoclaw" },
+          providerConnectionId: { type: "string", description: "Validated Provider connection selected for this Instance." },
           provider: { type: "string", const: "deepseek" },
           model: { type: "string", enum: ["deepseek-chat", "deepseek-reasoner"] },
           systemPrompt: { type: "string", minLength: 10, maxLength: 8000 },
@@ -217,21 +255,50 @@ export const openApiDocument = {
           },
         ],
       },
-      Provider: {
+      CreateProviderConnectionInput: {
         type: "object",
-        required: ["id", "name", "library", "models", "credentialSource"],
+        additionalProperties: false,
+        required: ["name", "provider", "endpoint", "model", "apiKey"],
         properties: {
-          id: { type: "string", const: "deepseek" },
-          name: { type: "string" },
-          library: { type: "string", const: "@ai-sdk/deepseek" },
-          models: { type: "array", items: { type: "string", enum: ["deepseek-chat", "deepseek-reasoner"] } },
-          credentialSource: { type: "string" },
+          name: { type: "string", minLength: 3, maxLength: 48 },
+          provider: { type: "string", const: "deepseek" },
+          endpoint: { type: "string", format: "uri" },
+          model: { type: "string", enum: ["deepseek-chat", "deepseek-reasoner"] },
+          apiKey: { type: "string", minLength: 8, writeOnly: true },
         },
       },
-      ProviderCollection: {
+      ProviderConnectionValidationCheck: {
+        type: "object",
+        required: ["id", "label", "status"],
+        properties: {
+          id: { type: "string", enum: ["endpoint", "model", "credentials", "inference"] },
+          label: { type: "string" },
+          status: { type: "string", enum: ["PASS", "FAIL"] },
+        },
+      },
+      ProviderConnection: {
+        type: "object",
+        required: ["id", "name", "provider", "endpoint", "model", "credentialState", "status", "checks", "validationMessage", "createdAt", "updatedAt"],
+        properties: {
+          id: { type: "string" },
+          name: { type: "string" },
+          provider: { type: "string", const: "deepseek" },
+          endpoint: { type: "string", format: "uri" },
+          model: { type: "string", enum: ["deepseek-chat", "deepseek-reasoner"] },
+          credentialState: { type: "string", const: "STORED" },
+          status: { type: "string", enum: ["VALIDATED", "FAILED"] },
+          checks: { type: "array", items: { $ref: "#/components/schemas/ProviderConnectionValidationCheck" } },
+          validationMessage: { type: "string" },
+          validationLatencyMs: { type: "integer" },
+          validatedAt: { type: "string", format: "date-time" },
+          createdAt: { type: "string", format: "date-time" },
+          updatedAt: { type: "string", format: "date-time" },
+        },
+      },
+      ProviderConnectionCollection: {
         type: "object",
         required: ["data"],
-        properties: { data: { type: "array", items: { $ref: "#/components/schemas/Provider" } } },
+        properties: { data: { type: "array", items: { $ref: "#/components/schemas/ProviderConnection" } } },
       },
       AgentCollection: {
         type: "object",
@@ -245,6 +312,23 @@ export const openApiDocument = {
           id: { type: "string", format: "uuid" },
           expiresAt: { type: "string", format: "date-time" },
           websocketUrl: { type: "string", description: "Relative WebSocket upgrade path; valid once for five minutes." },
+        },
+      },
+      RuntimeStatus: {
+        type: "object",
+        required: ["mode", "terminal"],
+        properties: {
+          mode: { type: "string" },
+          terminal: {
+            type: "object",
+            required: ["available", "kind", "transport"],
+            properties: {
+              available: { type: "boolean" },
+              kind: { type: "string", const: "nemoclaw-tui" },
+              transport: { type: "string", enum: ["nemoclaw", "openshell", "none"] },
+              reason: { type: "string" },
+            },
+          },
         },
       },
       DeleteAgentResult: {

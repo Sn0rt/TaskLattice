@@ -1,9 +1,18 @@
 import { useEffect, useRef, useState } from "react";
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal as Xterm } from "@xterm/xterm";
-import { encodeTerminalResize } from "@tasklattice/contracts";
+import {
+  encodeTerminalResize,
+  type RuntimeStatus,
+} from "@tasklattice/contracts";
 import "@xterm/xterm/css/xterm.css";
-import { SquareTerminal } from "lucide-react";
+import {
+  AlertTriangle,
+  Box,
+  RefreshCw,
+  ShieldCheck,
+  SquareTerminal,
+} from "lucide-react";
 import { api } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import {
@@ -25,9 +34,17 @@ export type TerminalConnectionState =
 export function AgentTerminal({
   agentId,
   enabled,
+  onRecheckRuntime,
+  runtimeChecking,
+  runtimeError,
+  runtimeStatus,
 }: {
   agentId: string;
   enabled: boolean;
+  onRecheckRuntime: () => void;
+  runtimeChecking: boolean;
+  runtimeError?: string | undefined;
+  runtimeStatus?: RuntimeStatus | undefined;
 }) {
   const container = useRef<HTMLDivElement>(null);
   const [connectionState, setConnectionState] =
@@ -35,8 +52,10 @@ export function AgentTerminal({
   const [attempt, setAttempt] = useState(0);
   const [requested, setRequested] = useState(false);
   const [error, setError] = useState<string>();
-  const [terminalKind, setTerminalKind] =
-    useState<"fixture" | "nemoclaw" | null>(null);
+
+  useEffect(() => {
+    if (enabled && runtimeStatus?.terminal.available) setRequested(true);
+  }, [enabled, runtimeStatus?.terminal.available]);
 
   useEffect(() => {
     if (!requested || !container.current) return;
@@ -58,9 +77,7 @@ export function AgentTerminal({
     const fit = new FitAddon();
     terminal.loadAddon(fit);
     terminal.open(container.current);
-    terminal.writeln(
-      "\x1b[2mRequesting an OpenShell terminal for this Kubernetes Sandbox…\x1b[0m",
-    );
+    terminal.writeln("\x1b[2mOpening the NemoClaw TUI for this Agent…\x1b[0m");
     terminal.writeln(
       "\x1b[2mDetecting the Sandbox runtime before opening its terminal…\x1b[0m",
     );
@@ -74,7 +91,7 @@ export function AgentTerminal({
     const connectionTimer = window.setTimeout(() => {
       if (disposed || session?.connected) return;
       const message =
-        "OpenShell terminal connection timed out. Close this panel and try again.";
+        "NemoClaw TUI connection timed out. Reconnect the TUI or inspect Sandbox activity.";
       setError(message);
       setConnectionState("error");
       terminal.writeln(`\r\n\x1b[31m${message}\x1b[0m`);
@@ -100,7 +117,7 @@ export function AgentTerminal({
       runtimeTimer = window.setTimeout(() => {
         if (disposed || session?.interactive) return;
         const message =
-          "OpenShell connected, but OpenClaw TUI did not produce a frame. Retry the terminal or inspect Sandbox activity.";
+          "NemoClaw connected, but OpenClaw TUI did not produce a frame. Reconnect the TUI or inspect Sandbox activity.";
         setError(message);
         setConnectionState("error");
         terminal.writeln(`\r\n\x1b[31m${message}\x1b[0m`);
@@ -147,18 +164,14 @@ export function AgentTerminal({
           if (disposed) return;
           if (event.type === "open") {
             terminal.writeln(
-              "\x1b[2mWebSocket connected; opening OpenShell exec…\x1b[0m",
+              "\x1b[2mSession connected; launching openclaw tui inside the Sandbox…\x1b[0m",
             );
             sendResize();
             terminal.focus();
             return;
           }
           if (event.type === "message") {
-            if (event.data.startsWith("Connected to fixture shell ")) {
-              setTerminalKind("fixture");
-              markReady();
-            } else if (event.data.startsWith("Connected to NemoClaw runtime ")) {
-              setTerminalKind("nemoclaw");
+            if (event.data.startsWith("Connected to NemoClaw runtime ")) {
               markRuntimeConnected();
             } else if (session?.interactive) {
               markReady();
@@ -185,9 +198,7 @@ export function AgentTerminal({
         session.listeners.add(sessionListener);
         if (session.buffer.length > 0) terminal.write(session.buffer.join(""));
         if (session.connected) {
-          setTerminalKind(session.connectionKind);
-          if (session.connectionKind === "fixture" || session.interactive)
-            markReady();
+          if (session.interactive) markReady();
           else markRuntimeConnected();
           sendResize();
           terminal.focus();
@@ -217,30 +228,86 @@ export function AgentTerminal({
   const retry = () => {
     resetTerminalSession(`agent/${agentId}`);
     setError(undefined);
-    setTerminalKind(null);
     setConnectionState("connecting");
     setAttempt((value) => value + 1);
   };
 
-  if (!requested) {
+  if (runtimeError || (runtimeStatus && !runtimeStatus.terminal.available)) {
     return (
-      <Button className="h-11" disabled={!enabled} onClick={() => setRequested(true)}>
-        <SquareTerminal />
-        Open terminal
-      </Button>
+      <div className="grid min-h-[300px] border bg-muted/20 md:grid-cols-[1.15fr_0.85fr]">
+        <div className="flex flex-col justify-between gap-8 border-b p-5 md:border-r md:border-b-0">
+          <div>
+            <div className="flex items-center gap-2 font-medium">
+              <AlertTriangle className="size-4 text-amber-600" />
+              NemoClaw TUI unavailable
+            </div>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
+              {runtimeError ?? runtimeStatus?.terminal.reason}
+            </p>
+          </div>
+          <Button
+            className="w-fit"
+            disabled={runtimeChecking}
+            variant="outline"
+            onClick={onRecheckRuntime}
+          >
+            <RefreshCw className={runtimeChecking ? "animate-spin" : undefined} />
+            {runtimeChecking ? "Checking runtime…" : "Recheck runtime"}
+          </Button>
+        </div>
+        <dl className="grid content-center gap-5 p-5 text-xs">
+          <div>
+            <dt className="text-muted-foreground">Runner mode</dt>
+            <dd className="mt-1 font-mono font-medium">
+              {runtimeStatus?.mode ?? "unreachable"}
+            </dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-2 text-muted-foreground">
+              <Box className="size-3.5" />
+              TUI launch
+            </dt>
+            <dd className="mt-1 font-medium">Blocked before session creation</dd>
+          </div>
+          <div>
+            <dt className="flex items-center gap-2 text-muted-foreground">
+              <ShieldCheck className="size-3.5" />
+              Isolation boundary
+            </dt>
+            <dd className="mt-1 font-medium">Runner host shell is never exposed</dd>
+          </div>
+        </dl>
+      </div>
     );
   }
 
+  if (!runtimeStatus || !enabled || !requested)
+    return (
+      <div className="grid min-h-[300px] place-items-center border bg-muted/20 px-6 text-center">
+        <div>
+          <SquareTerminal className="mx-auto size-6 text-muted-foreground" />
+          <p className="mt-3 text-sm font-medium">
+            {!runtimeStatus
+              ? "Checking NemoClaw runtime…"
+              : !enabled
+                ? "Waiting for the Sandbox to become ready…"
+                : "Preparing NemoClaw TUI…"}
+          </p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            The TUI opens only after the in-sandbox Gateway is available.
+          </p>
+        </div>
+      </div>
+    );
+
   const ready = connectionState === "ready";
   const status = ready
-    ? terminalKind === "fixture"
-      ? "Fixture shell ready — OpenClaw TUI requires the OpenShell runtime"
-      : "OpenClaw TUI ready — connected through the NemoClaw Gateway"
+    ? "OpenClaw TUI ready — connected through the NemoClaw Gateway"
     : connectionState === "starting"
-      ? "OpenShell connected — waiting for the first OpenClaw TUI frame…"
+      ? "NemoClaw connected — waiting for the first OpenClaw TUI frame…"
       : connectionState === "closed"
         ? "Terminal session closed"
-        : (error ?? "Connecting to OpenShell Sandbox…");
+        : (error ?? "Connecting to the NemoClaw Sandbox…");
 
   return (
     <div>
@@ -259,13 +326,13 @@ export function AgentTerminal({
         </span>
         {connectionState === "error" || connectionState === "closed" ? (
           <Button className="h-11" size="sm" variant="outline" onClick={retry}>
-            Retry terminal
+            Reconnect TUI
           </Button>
         ) : null}
       </div>
       <div
         ref={container}
-        aria-label="Interactive Kubernetes Sandbox terminal"
+        aria-label="Interactive NemoClaw OpenClaw TUI"
         className="h-[360px] cursor-text overflow-hidden rounded-sm border bg-[#0b0f0e] p-2"
       />
     </div>

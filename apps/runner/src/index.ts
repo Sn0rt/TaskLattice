@@ -3,7 +3,6 @@ import {
   parseTerminalResize,
   type RunnerSandbox,
 } from "@tasklattice/contracts";
-import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import type { Duplex } from "node:stream";
 import * as pty from "node-pty";
@@ -11,6 +10,7 @@ import { WebSocket, WebSocketServer } from "ws";
 import { z } from "zod";
 import {
   installAgentInstructions,
+  nemoClawTerminalArguments,
   onboardCommand,
   runCommand,
   verifyDeepSeek,
@@ -292,48 +292,24 @@ server.on("upgrade", async (request, socket, head) => {
       409,
       "NemoClaw sandbox is not ready for terminal access.",
     );
+  if (mode === "fixture")
+    return void rejectTerminalUpgrade(
+      socket,
+      409,
+      "Fixture mode cannot launch the NemoClaw TUI and never exposes a host shell.",
+    );
   if (socket.destroyed) return;
   sockets.handleUpgrade(request, socket, head, (webSocket) => {
     const connectionId = crypto.randomUUID().slice(0, 8);
     console.info(
       `[terminal ${connectionId}] allocating terminal for ${state.name}`,
     );
-    if (mode === "fixture") {
-      const child = spawn("/bin/sh", ["-i"], {
-        cwd: process.cwd(),
-        env: { ...process.env, PS1: "tasklattice-fixture$ " },
-        stdio: ["pipe", "pipe", "pipe"],
-      });
-      const send = (data: Buffer) =>
-        webSocket.readyState === WebSocket.OPEN &&
-        webSocket.send(data.toString());
-      child.stdout.on("data", send);
-      child.stderr.on("data", send);
-      child.on("close", (exitCode) =>
-        webSocket.close(1000, `Terminal exited ${exitCode ?? 1}`),
-      );
-      webSocket.send(
-        `Connected to fixture shell ${state.name}\r\n` +
-          "Fixture mode validates terminal transport only; OpenClaw TUI requires the OpenShell runtime.\r\n",
-      );
-      webSocket.on("message", (raw) => {
-        const input = raw.toString();
-        if (!parseTerminalResize(input)) child.stdin.write(input);
-      });
-      webSocket.on("close", () => {
-        console.info(
-          `[terminal ${connectionId}] fixture terminal disconnected`,
-        );
-        child.kill();
-      });
-      return;
-    }
     try {
       const terminal = pty.spawn(
         isOpenShell ? openShellBinary() : "nemoclaw",
         isOpenShell
           ? openShellTerminalArguments(state.name)
-          : [state.name, "exec", "--tty", "--stdin", "--", "/bin/sh"],
+          : nemoClawTerminalArguments(state.name),
         {
           name: "xterm-256color",
           cols: 100,
@@ -354,7 +330,7 @@ server.on("upgrade", async (request, socket, head) => {
       terminal.onData((data) => {
         if (!receivedOutput) {
           receivedOutput = true;
-          console.info(`[terminal ${connectionId}] shell produced output`);
+          console.info(`[terminal ${connectionId}] OpenClaw TUI produced output`);
         }
         if (webSocket.readyState === WebSocket.OPEN) webSocket.send(data);
       });

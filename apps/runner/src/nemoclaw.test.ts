@@ -3,7 +3,7 @@ import {
   encodeTerminalResize,
   parseTerminalResize,
 } from "@tasklattice/contracts";
-import { onboardCommand } from "./nemoclaw.js";
+import { nemoClawTerminalArguments, onboardCommand } from "./nemoclaw.js";
 import {
   deepSeekProviderCreateCommand,
   openShellNemoClawProbeArguments,
@@ -70,15 +70,29 @@ describe("OpenShell Kubernetes command contract", () => {
     expect(args.at(-1)).toContain("127.0.0.1:18789/health");
   });
 
-  it("opens the Gateway-backed OpenClaw TUI before falling back to a shell", () => {
+  it("opens only the Gateway-backed OpenClaw TUI", () => {
     const args = openShellTerminalArguments(input.name);
     expect(args).toContain(input.name);
     expect(args).toContain("--tty");
     expect(args).toContain("--timeout");
     expect(args).toContain("TERM=xterm-256color");
-    expect(args.at(-1)).toContain("openclaw tui;");
+    expect(args.at(-1)).toBe("exec openclaw tui");
     expect(args.at(-1)).not.toContain("--local");
-    expect(args.at(-1)).toContain("exec /bin/bash -l");
+    expect(args.at(-1)).not.toContain("/bin/bash -l");
+  });
+
+  it("launches the OpenClaw TUI through a NemoClaw exec PTY", () => {
+    const args = nemoClawTerminalArguments(input.name);
+    expect(args.slice(0, 7)).toEqual([
+      input.name,
+      "exec",
+      "--tty",
+      "--stdin",
+      "--timeout",
+      "0",
+      "--",
+    ]);
+    expect(args.at(-1)).toBe("exec openclaw tui");
   });
 
   it("round-trips bounded browser terminal resize messages", () => {

@@ -27,6 +27,16 @@ function Sandboxes() {
     queryFn: api.listAgents,
     refetchInterval: 2_000,
   });
+  const runtime = useQuery({
+    queryKey: ["runtime-status"],
+    queryFn: api.getRuntimeStatus,
+    retry: 1,
+    staleTime: 10_000,
+    refetchInterval: 30_000,
+  });
+  const openShellAvailable =
+    runtime.data?.terminal.available &&
+    runtime.data.terminal.transport === "openshell";
   const sandboxes = useMemo(() => agents.data ?? [], [agents.data]);
   const selected =
     sandboxes.find((agent) => agent.id === selectedId) ?? sandboxes[0];
@@ -38,9 +48,15 @@ function Sandboxes() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Instance / Sandbox"
+        eyebrow="Agent / OpenShell"
         title="Sandboxes"
-        description="Inspect the isolation boundary where each Agent runs and review its scoped runtime evidence."
+        description="Inspect the OpenShell isolation boundary for each Agent Instance, then follow its current Sandbox and Pod realization."
+        badge={
+          <StatusDot
+            label={runtime.isPending ? "Checking OpenShell" : openShellAvailable ? "OpenShell connected" : "OpenShell unavailable"}
+            tone={runtime.isPending ? "neutral" : openShellAvailable ? "success" : runtime.error ? "danger" : "warning"}
+          />
+        }
       />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -48,8 +64,8 @@ function Sandboxes() {
           <CardHeader className="border-b">
             <CardTitle>Sandbox list</CardTitle>
             <CardDescription>
-              Runtime state is observed from the Sandbox boundary, not inferred
-              from a Pod identity.
+              Instance → OpenShell Sandbox → Pod. Runtime state is observed from
+              the stable Sandbox boundary, not inferred from a Pod identity.
             </CardDescription>
           </CardHeader>
           <CardContent className="px-0">
@@ -137,6 +153,7 @@ function Sandboxes() {
               {tab === "overview" ? (
                 <dl className="text-xs">
                   {[
+                    ["Runtime layer", "OpenShell"],
                     ["Stable identity", selected.sandboxName],
                     ["Instance", selected.id.slice(0, 8)],
                     ["Pod", selected.status === "READY" ? "1 / 1" : "0 / 1"],

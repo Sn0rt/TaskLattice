@@ -12,10 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as SandboxesRouteImport } from './routes/sandboxes'
+import { Route as ProvidersRouteImport } from './routes/providers'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as InstancesRouteImport } from './routes/instances'
 import { Route as DashboardRouteImport } from './routes/dashboard'
-import { Route as ApiQuotaRouteImport } from './routes/api-quota'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentsIndexRouteImport } from './routes/agents/index'
 import { Route as RequestsNewRouteImport } from './routes/requests/new'
@@ -41,6 +41,11 @@ const SandboxesRoute = SandboxesRouteImport.update({
   path: '/sandboxes',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProvidersRoute = ProvidersRouteImport.update({
+  id: '/providers',
+  path: '/providers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
@@ -54,11 +59,6 @@ const InstancesRoute = InstancesRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiQuotaRoute = ApiQuotaRouteImport.update({
-  id: '/api-quota',
-  path: '/api-quota',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -109,10 +109,10 @@ const AgentsAgentIdRoute = AgentsAgentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
-  '/api-quota': typeof ApiQuotaRoute
   '/dashboard': typeof DashboardRoute
   '/instances': typeof InstancesRoute
   '/login': typeof LoginRoute
+  '/providers': typeof ProvidersRoute
   '/sandboxes': typeof SandboxesRoute
   '/skills': typeof SkillsRoute
   '/tickets': typeof TicketsRoute
@@ -127,10 +127,10 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
-  '/api-quota': typeof ApiQuotaRoute
   '/dashboard': typeof DashboardRoute
   '/instances': typeof InstancesRoute
   '/login': typeof LoginRoute
+  '/providers': typeof ProvidersRoute
   '/sandboxes': typeof SandboxesRoute
   '/skills': typeof SkillsRoute
   '/tickets': typeof TicketsRoute
@@ -146,10 +146,10 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/api-quota': typeof ApiQuotaRoute
   '/dashboard': typeof DashboardRoute
   '/instances': typeof InstancesRoute
   '/login': typeof LoginRoute
+  '/providers': typeof ProvidersRoute
   '/sandboxes': typeof SandboxesRoute
   '/skills': typeof SkillsRoute
   '/tickets': typeof TicketsRoute
@@ -166,10 +166,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
-    | '/api-quota'
     | '/dashboard'
     | '/instances'
     | '/login'
+    | '/providers'
     | '/sandboxes'
     | '/skills'
     | '/tickets'
@@ -184,10 +184,10 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
-    | '/api-quota'
     | '/dashboard'
     | '/instances'
     | '/login'
+    | '/providers'
     | '/sandboxes'
     | '/skills'
     | '/tickets'
@@ -202,10 +202,10 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/'
-    | '/api-quota'
     | '/dashboard'
     | '/instances'
     | '/login'
+    | '/providers'
     | '/sandboxes'
     | '/skills'
     | '/tickets'
@@ -221,10 +221,10 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ApiQuotaRoute: typeof ApiQuotaRoute
   DashboardRoute: typeof DashboardRoute
   InstancesRoute: typeof InstancesRoute
   LoginRoute: typeof LoginRoute
+  ProvidersRoute: typeof ProvidersRoute
   SandboxesRoute: typeof SandboxesRoute
   SkillsRoute: typeof SkillsRoute
   TicketsRoute: typeof TicketsRoute
@@ -261,6 +261,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SandboxesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/providers': {
+      id: '/providers'
+      path: '/providers'
+      fullPath: '/providers'
+      preLoaderRoute: typeof ProvidersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -280,13 +287,6 @@ declare module '@tanstack/react-router' {
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api-quota': {
-      id: '/api-quota'
-      path: '/api-quota'
-      fullPath: '/api-quota'
-      preLoaderRoute: typeof ApiQuotaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -357,10 +357,10 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ApiQuotaRoute: ApiQuotaRoute,
   DashboardRoute: DashboardRoute,
   InstancesRoute: InstancesRoute,
   LoginRoute: LoginRoute,
+  ProvidersRoute: ProvidersRoute,
   SandboxesRoute: SandboxesRoute,
   SkillsRoute: SkillsRoute,
   TicketsRoute: TicketsRoute,

@@ -57,6 +57,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 COPY --from=openshell-cli /usr/local/bin/openshell /usr/local/bin/openshell
 COPY --from=production-dependencies /app/node_modules ./node_modules
+COPY packages/contracts/package.json ./packages/contracts/package.json
+COPY --from=build /app/packages/contracts/dist ./packages/contracts/dist
 COPY --from=build /app/apps/runner/dist ./apps/runner/dist
 COPY apps/runner/package.json ./apps/runner/package.json
 USER node

@@ -1,4 +1,8 @@
-import type { AgentModel, RunnerSandbox } from "@tasklattice/contracts";
+import type {
+  AgentModel,
+  RunnerHealth,
+  RunnerSandbox,
+} from "@tasklattice/contracts";
 
 export interface CreateSandboxInput {
   name: string;
@@ -58,6 +62,10 @@ export class NemoClawRunnerClient {
       `/v1/sandboxes/${encodeURIComponent(name)}`,
       { method: "DELETE" },
     );
+  }
+
+  getHealth(): Promise<RunnerHealth> {
+    return this.request<RunnerHealth>("/health");
   }
 
   terminalWebSocketUrl(name: string): string {

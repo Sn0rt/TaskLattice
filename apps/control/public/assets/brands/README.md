@@ -12,3 +12,14 @@ The NVIDIA logo remains a trademark of NVIDIA Corporation. NVIDIA's official
 brand guidelines restrict use and warn against implying affiliation or
 endorsement. Keep this asset unmodified, use it only to identify the configured
 NVIDIA runtime, and confirm authorization before public or commercial release.
+
+## Hermes Agent
+
+- File: `hermes-agent-logo.png`
+- Source: Hermes Agent official website application icon
+- Source URL: https://hermes-agent.nousresearch.com/icon.png
+- Downloaded: 2026-07-15
+- SHA-256: `5fbced606189c9bfc2925a16f8903333041cabbf1f8699fe9fe9b3e24504048f`
+
+The Hermes Agent mark is used only to identify the disabled runtime placeholder.
+Keep it unmodified and do not imply Nous Research endorsement.

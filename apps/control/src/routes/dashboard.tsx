@@ -27,7 +27,7 @@ function Overview() {
       <PageHeader
         eyebrow="Workspace / UAT"
         title="Operations workspace"
-        description="Manage model quota, runtime Instances, Sandboxes, Skills, approvals, and monitoring from one control path."
+        description="Manage Provider connections, runtime Instances, Sandboxes, Skills, approvals, and monitoring from one control path."
         actions={
           <Button asChild size="lg">
             <Link to="/agents/new"><Plus />Create Instance</Link>

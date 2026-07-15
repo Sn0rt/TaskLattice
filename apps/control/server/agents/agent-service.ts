@@ -6,6 +6,7 @@ import type {
 } from "@tasklattice/contracts";
 import { AgentStore } from "../data/agent-store";
 import { NemoClawRunnerClient } from "../runtime/nemoclaw-runner-client";
+import { localDeepSeekConnectionId } from "../providers/provider-connection-service";
 
 const demoAgentId = "00000000-0000-4000-8000-000000000001";
 
@@ -55,11 +56,25 @@ export class AgentService {
   }
 
   async create(input: CreateAgentInput): Promise<Agent> {
+    const connection = this.store.getProviderConnection(
+      input.providerConnectionId,
+    );
+    if (!connection || connection.status !== "VALIDATED")
+      throw new Error(
+        "Select a validated provider connection before creating an Instance.",
+      );
+    const apiKey = this.store.getProviderConnectionCredential(connection.id);
+    if (!apiKey)
+      throw new Error(
+        "The selected provider connection no longer has a backend credential.",
+      );
     const id = randomUUID();
     const now = new Date().toISOString();
     let agent: Agent = {
       id,
       ...input,
+      provider: connection.provider,
+      model: connection.model,
       sandboxName: sandboxName(input.name, id),
       status: "PROVISIONING",
       createdAt: now,
@@ -68,16 +83,15 @@ export class AgentService {
     };
     this.store.save(agent);
     try {
-      const apiKey = this.store.getProviderCredential("deepseek");
       agent = this.store.save(
         applyObservedState(
           agent,
           await this.runner.createSandbox({
             name: agent.sandboxName,
-            provider: input.provider,
-            model: input.model,
+            provider: connection.provider,
+            model: connection.model,
             systemPrompt: input.systemPrompt,
-            ...(apiKey ? { apiKey } : {}),
+            apiKey,
           }),
         ),
       );
@@ -123,6 +137,7 @@ export class AgentService {
       name: "DeepSeek NemoClaw Demo",
       description: "Seeded local Agent for the NemoClaw core-flow test.",
       runtime: "nemoclaw",
+      providerConnectionId: localDeepSeekConnectionId,
       sandboxName: "tasklattice-deepseek-demo-00000000",
       status: "PROVISIONING",
       provider: "deepseek",

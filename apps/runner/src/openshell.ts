@@ -110,10 +110,7 @@ export function openShellTerminalArguments(name: string): string[] {
     "--",
     "/bin/bash",
     "-lc",
-    "openclaw tui; " +
-      "status=$?; " +
-      "printf '\\r\\nOpenClaw TUI exited with status %s; continuing in the Sandbox shell.\\r\\n' \"$status\"; " +
-      "exec /bin/bash -l",
+    "exec openclaw tui",
   ]);
 }
 

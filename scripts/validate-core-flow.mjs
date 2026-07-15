@@ -36,12 +36,22 @@ const login = await request("/api/v1/auth/local", {
 });
 authToken = login.token;
 
+const providers = await request("/api/v1/providers");
+const validatedProvider = providers.data.find(
+  (provider) => provider.status === "VALIDATED",
+);
+if (!validatedProvider)
+  throw new Error(
+    "No validated Provider connection is available for Instance creation.",
+  );
+
 const created = await request("/api/v1/agents", {
   method: "POST",
   body: JSON.stringify({
     name: `validation-${Date.now().toString().slice(-6)}`,
     description: "REST and terminal contract validation",
     runtime: "nemoclaw",
+    providerConnectionId: validatedProvider.id,
     provider: "deepseek",
     model: "deepseek-chat",
     systemPrompt: "You are a validation agent. Report runtime evidence clearly.",
@@ -55,56 +65,54 @@ for (let attempt = 0; attempt < 120 && agent.status === "PROVISIONING"; attempt 
 }
 if (agent.status !== "READY") throw new Error(`Agent did not become READY: ${JSON.stringify(agent)}`);
 
-const session = await request(`/api/v1/agents/${agent.id}/terminal-sessions`, { method: "POST", body: "{}" });
-const wsBase = new URL(baseUrl);
-wsBase.protocol = wsBase.protocol === "https:" ? "wss:" : "ws:";
-const socket = new WebSocket(new URL(session.websocketUrl, wsBase));
-
-const terminalEvidence = await new Promise((resolve, reject) => {
-  let output = "";
-  let requestedTuiExit = false;
-  let sentRuntimeProbe = false;
-  const runtimeProbe =
-    "printf 'TALI_TERMINAL_OK\\n'; printf 'hostname='; cat /etc/hostname; openclaw --version; test -x /usr/local/bin/nemoclaw-start && curl -fsS http://127.0.0.1:18789/health >/dev/null && pgrep -f nemoclaw-start >/dev/null && printf 'NEMOCLAW_RUNTIME_OK\\n'\n";
-  const timer = setTimeout(() => reject(new Error(`Terminal timeout: ${output}`)), 15_000);
-  socket.on("open", () => {
-    if (!expectNemoClawRuntime)
-      socket.send("printf 'TALI_TERMINAL_OK\\nFIXTURE_RUNTIME_OK\\n'\n");
+const runtime = await request("/api/v1/runtime");
+let terminalEvidence;
+if (!runtime.terminal.available) {
+  if (expectNemoClawRuntime)
+    throw new Error(`NemoClaw TUI runtime unavailable: ${JSON.stringify(runtime)}`);
+  let rejection = "";
+  try {
+    await request(`/api/v1/agents/${agent.id}/terminal-sessions`, {
+      method: "POST",
+      body: "{}",
+    });
+  } catch (error) {
+    rejection = error instanceof Error ? error.message : String(error);
+  }
+  if (!rejection.includes("fixture runner"))
+    throw new Error(`Fixture TUI session was not rejected safely: ${rejection}`);
+  terminalEvidence = `TUI unavailable in ${runtime.mode}; host shell blocked before session creation.`;
+} else {
+  const session = await request(`/api/v1/agents/${agent.id}/terminal-sessions`, {
+    method: "POST",
+    body: "{}",
   });
-  socket.on("message", (raw) => {
-    output += raw.toString();
-    if (
-      expectNemoClawRuntime &&
-      !requestedTuiExit &&
-      output.includes("Connected to NemoClaw runtime")
-    ) {
-      requestedTuiExit = true;
-      socket.send("\x04");
-    }
-    if (
-      expectNemoClawRuntime &&
-      requestedTuiExit &&
-      !sentRuntimeProbe &&
-      output.includes("continuing in the Sandbox shell.")
-    ) {
-      sentRuntimeProbe = true;
-      socket.send(runtimeProbe);
-    }
-    if (
-      output.includes("TALI_TERMINAL_OK") &&
-      (expectNemoClawRuntime
-        ? output.includes(`hostname=${agent.sandboxName}`) &&
-          output.includes("OpenClaw 2026.6.10") &&
-          /(?:\r\n|\n)NEMOCLAW_RUNTIME_OK\r?\n/.test(output)
-        : /(?:\r\n|\n)FIXTURE_RUNTIME_OK\r?\n/.test(output))
-    ) {
-      clearTimeout(timer);
-      socket.close();
-      resolve(output);
-    }
+  const wsBase = new URL(baseUrl);
+  wsBase.protocol = wsBase.protocol === "https:" ? "wss:" : "ws:";
+  const socket = new WebSocket(new URL(session.websocketUrl, wsBase));
+  terminalEvidence = await new Promise((resolve, reject) => {
+    let output = "";
+    let runtimeConnected = false;
+    const timer = setTimeout(
+      () => reject(new Error(`NemoClaw TUI frame timeout: ${output}`)),
+      20_000,
+    );
+    socket.on("message", (raw) => {
+      const chunk = raw.toString();
+      output += chunk;
+      if (chunk.startsWith("Connected to NemoClaw runtime")) {
+        runtimeConnected = true;
+        return;
+      }
+      if (runtimeConnected && chunk.length > 0) {
+        clearTimeout(timer);
+        socket.close();
+        resolve("NemoClaw runtime connected and OpenClaw TUI produced its first PTY frame.");
+      }
+    });
+    socket.on("error", reject);
   });
-  socket.on("error", reject);
-});
+}
 
 const destroyed = await request(`/api/v1/agents/${agent.id}`, { method: "DELETE" });
 const deletedResource = await fetch(`${baseUrl}/api/v1/agents/${agent.id}`, {

@@ -4,6 +4,7 @@ import { requireAuth, unauthorizedResponse } from "../../../../../auth/auth";
 import { errorResponse, jsonResponse } from "../../../../../http/responses";
 import { getAgentService } from "../../../../../services";
 import { createTerminalSession } from "../../../../../terminal/terminal-sessions";
+import { runtimeStatusFromHealth } from "../../../../../runtime/runtime-status";
 
 export default defineHandler(async (event) => {
   try {
@@ -13,7 +14,8 @@ export default defineHandler(async (event) => {
   }
   try {
     const id = z.string().uuid().parse(event.context.params?.agentId);
-    const agent = await (await getAgentService()).get(id);
+    const service = await getAgentService();
+    const agent = await service.get(id);
     if (!agent)
       return jsonResponse({ error: "Agent not found." }, { status: 404 });
     if (agent.status !== "READY")
@@ -21,6 +23,16 @@ export default defineHandler(async (event) => {
         {
           error:
             "Terminal is available only when the NemoClaw sandbox is ready.",
+        },
+        { status: 409 },
+      );
+    const runtime = runtimeStatusFromHealth(await service.runner.getHealth());
+    if (!runtime.terminal.available)
+      return jsonResponse(
+        {
+          error:
+            runtime.terminal.reason ??
+            "The active runtime cannot launch the NemoClaw TUI.",
         },
         { status: 409 },
       );

@@ -7,7 +7,7 @@ export type TerminalSessionEvent =
 export interface TerminalSession {
   buffer: string[];
   closeTimer: number | null;
-  connectionKind: "fixture" | "nemoclaw" | null;
+  connectionKind: "nemoclaw" | null;
   connected: boolean;
   interactive: boolean;
   listeners: Set<(event: TerminalSessionEvent) => void>;
@@ -49,11 +49,7 @@ function createTerminalSession(key: string, url: string): TerminalSession {
   session.socket.addEventListener("open", () => emit({ type: "open" }));
   session.socket.addEventListener("message", (event) => {
     void websocketText(event.data).then((data) => {
-      if (data.startsWith("Connected to fixture shell ")) {
-        session.connected = true;
-        session.connectionKind = "fixture";
-        session.interactive = true;
-      } else if (data.startsWith("Connected to NemoClaw runtime ")) {
+      if (data.startsWith("Connected to NemoClaw runtime ")) {
         session.connected = true;
         session.connectionKind = "nemoclaw";
       } else if (session.connected && data.length > 0) {

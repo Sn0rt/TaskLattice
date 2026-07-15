@@ -10,6 +10,7 @@ describe("AgentStore", () => {
       name: "Research",
       description: "",
       runtime: "nemoclaw",
+      providerConnectionId: "provider-a",
       sandboxName: "tasklattice-research-a",
       status: "PROVISIONING",
       provider: "deepseek",
@@ -21,6 +22,26 @@ describe("AgentStore", () => {
     });
     expect(store.get("a")?.runtime).toBe("nemoclaw");
     expect(store.list()).toHaveLength(1);
+    store.saveProviderConnection(
+      {
+        id: "provider-a",
+        name: "DeepSeek validated",
+        provider: "deepseek",
+        endpoint: "https://api.deepseek.com",
+        model: "deepseek-chat",
+        credentialState: "STORED",
+        status: "VALIDATED",
+        checks: [],
+        validationMessage: "Validated",
+        createdAt: now,
+        updatedAt: now,
+      },
+      "provider-secret-value",
+    );
+    expect(store.listProviderConnections()).toHaveLength(1);
+    expect(store.getProviderConnectionCredential("provider-a")).toBe(
+      "provider-secret-value",
+    );
     store.saveProviderCredential("deepseek", "test-secret-value");
     expect(store.getProviderCredential("deepseek")).toBe("test-secret-value");
   });

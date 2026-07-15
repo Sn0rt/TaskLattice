@@ -31,6 +31,12 @@ function AgentDetail() {
         ? false
         : 1_000,
   });
+  const runtime = useQuery({
+    queryKey: ["runtime-status"],
+    queryFn: api.getRuntimeStatus,
+    retry: 1,
+    staleTime: 5_000,
+  });
 
   if (!agent.data)
     return (
@@ -44,14 +50,14 @@ function AgentDetail() {
   const hierarchy: Array<{ icon: LucideIcon; label: string; value: string }> = [
     { icon: Bot, label: "Agent", value: "Desired identity" },
     { icon: Cpu, label: "Instance", value: agent.data.id.slice(0, 8) },
-    { icon: Box, label: "Sandbox", value: agent.data.sandboxName },
+    { icon: Box, label: "OpenShell Sandbox", value: agent.data.sandboxName },
     { icon: Container, label: "Pod", value: "Ephemeral realization" },
   ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={`Instances / ${agent.data.id.slice(0, 8)}`}
+        eyebrow={`Agent / Instances / ${agent.data.id.slice(0, 8)}`}
         title={agent.data.name}
         description={agent.data.description || "NemoClaw runtime Instance"}
         badge={<AgentStatusBadge status={agent.data.status} />}
@@ -76,7 +82,17 @@ function AgentDetail() {
       </div>
       {agent.data.status !== "READY" ? (
         <Card>
-          <CardContent className="py-5">
+          <CardHeader className="border-b">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <ScrollText className="size-4" />
+              Provisioning
+            </CardTitle>
+            <CardDescription className="flex flex-wrap items-center justify-between gap-3">
+              <span>Logs remain visible while the Instance is being created or needs recovery.</span>
+              <Link to="/sandboxes" className="font-medium text-foreground underline underline-offset-4">Open Sandbox audit</Link>
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4 py-5">
             <div className="mb-3 flex items-center justify-between text-sm">
               <span>Sandbox provisioning</span>
               <span className="text-muted-foreground">
@@ -90,6 +106,7 @@ function AgentDetail() {
                 {agent.data.error}
               </p>
             ) : null}
+            <ProvisioningLog lines={agent.data.logs} />
           </CardContent>
         </Card>
       ) : null}
@@ -101,41 +118,33 @@ function AgentDetail() {
           value={`DeepSeek · ${agent.data.model}`}
         />
         <DetailCard
-          label="Sandbox"
+          label="OpenShell Sandbox"
           value={agent.data.sandboxName}
           mono
         />
       </div>
-      <Card>
-        <CardHeader className="border-b">
-          <CardTitle className="flex items-center gap-2 text-base">
-            <ScrollText className="size-4" />
-            Provisioning evidence
-          </CardTitle>
-          <CardDescription className="flex flex-wrap items-center justify-between gap-3">
-            <span>Sanitized Runtime Host output. Credentials are never included.</span>
-            <Link to="/sandboxes" className="font-medium text-foreground underline underline-offset-4">
-              Open Sandbox audit
-            </Link>
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <ProvisioningLog lines={agent.data.logs} />
-        </CardContent>
-      </Card>
-      <Card>
+      <Card id="terminal" className="scroll-mt-24">
         <CardHeader>
-          <CardTitle className="text-base">Terminal</CardTitle>
+          <CardTitle className="flex items-center gap-2 text-base">
+            <Container className="size-4" />
+            NemoClaw TUI
+          </CardTitle>
           <CardDescription>
-            The OpenShell runtime opens the DeepSeek-backed OpenClaw TUI inside
-            the same Sandbox Pod. Fixture mode is labeled clearly and exposes a
-            transport-test shell instead of claiming that the TUI is running.
+            Interactive OpenClaw client attached to this Agent&apos;s in-sandbox
+            Gateway through OpenShell. This surface never falls back to the
+            runner host shell.
           </CardDescription>
         </CardHeader>
         <CardContent>
           <AgentTerminal
             agentId={agentId}
             enabled={agent.data.status === "READY"}
+            runtimeStatus={runtime.data}
+            runtimeError={
+              runtime.error instanceof Error ? runtime.error.message : undefined
+            }
+            runtimeChecking={runtime.isFetching}
+            onRecheckRuntime={() => void runtime.refetch()}
           />
         </CardContent>
       </Card>
