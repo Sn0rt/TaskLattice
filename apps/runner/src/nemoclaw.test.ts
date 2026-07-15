@@ -1,4 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
+import {
+  encodeTerminalResize,
+  parseTerminalResize,
+} from "@tasklattice/contracts";
 import { onboardCommand } from "./nemoclaw.js";
 import {
   deepSeekProviderCreateCommand,
@@ -66,11 +70,24 @@ describe("OpenShell Kubernetes command contract", () => {
     expect(args.at(-1)).toContain("127.0.0.1:18789/health");
   });
 
-  it("opens the DeepSeek-backed OpenClaw TUI before falling back to a shell", () => {
+  it("opens the Gateway-backed OpenClaw TUI before falling back to a shell", () => {
     const args = openShellTerminalArguments(input.name);
     expect(args).toContain(input.name);
     expect(args).toContain("--tty");
-    expect(args.at(-1)).toContain("openclaw tui --local");
+    expect(args).toContain("--timeout");
+    expect(args).toContain("TERM=xterm-256color");
+    expect(args.at(-1)).toContain("openclaw tui;");
+    expect(args.at(-1)).not.toContain("--local");
     expect(args.at(-1)).toContain("exec /bin/bash -l");
+  });
+
+  it("round-trips bounded browser terminal resize messages", () => {
+    expect(parseTerminalResize(encodeTerminalResize({ cols: 120, rows: 36 }))).toEqual({
+      cols: 120,
+      rows: 36,
+    });
+    expect(parseTerminalResize("plain terminal input")).toBeUndefined();
+    expect(parseTerminalResize("\u0000TALI_RESIZE:120:36:1")).toBeUndefined();
+    expect(parseTerminalResize(encodeTerminalResize({ cols: 2, rows: 1 }))).toBeUndefined();
   });
 });

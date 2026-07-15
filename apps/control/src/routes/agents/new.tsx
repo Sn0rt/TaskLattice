@@ -49,10 +49,10 @@ function CreateAgent() {
   return (
     <div className="space-y-7">
       <PageHeader
-        eyebrow="Agents / Create"
-        title="Create Agent"
+        eyebrow="Instance / Create"
+        title="Create Instance"
         badge={<Badge variant="outline">UAT</Badge>}
-        description="Configure one supported NemoClaw instance. Runtime provisioning continues asynchronously after submission."
+        description="Define an Agent and provision its NemoClaw runtime Instance. Runtime creation continues asynchronously after submission."
       />
       <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
         <aside className="space-y-1">
@@ -179,7 +179,14 @@ function CreateAgent() {
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-lg border-2 border-primary bg-primary/5 p-4">
                   <div className="flex items-center justify-between">
-                    <strong className="text-sm">NVIDIA NemoClaw</strong>
+                    <div className="flex items-center gap-3">
+                      <img
+                        src="/assets/brands/nvidia-logo-square.png"
+                        alt="NVIDIA"
+                        className="h-7 w-12 object-contain object-left"
+                      />
+                      <strong className="text-sm">NemoClaw</strong>
+                    </div>
                     <Check className="size-4 text-primary" />
                   </div>
                   <p className="mt-2 text-xs leading-5 text-muted-foreground">
@@ -268,7 +275,7 @@ function CreateAgent() {
                 >
                   {mutation.isPending
                     ? "Creating NemoClaw sandbox…"
-                    : "Create NemoClaw Agent"}
+                    : "Create Instance"}
                 </Button>
               )}
             </form.Subscribe>

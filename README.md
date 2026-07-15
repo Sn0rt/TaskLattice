@@ -72,7 +72,10 @@ runner invokes OpenShell's Kubernetes driver and allocates terminals with
 `openshell sandbox exec --tty`; it does not run Docker-in-Docker or mount a
 Docker socket. Pod creation launches `nemoclaw-start` as the long-lived
 OpenShell-managed process; readiness is not published until the in-sandbox
-OpenClaw gateway answers its `/health` probe.
+OpenClaw gateway answers its `/health` probe. Browser sessions open the
+Gateway-backed `openclaw tui`; the local fixture exposes an explicitly labeled
+interactive shell because it validates transport without pretending to run the
+NemoClaw stack.
 
 The default sandbox request is 1 CPU and 2 GiB memory. The complete NemoClaw
 runtime can be OOM-killed during gateway/plugin startup at the former 1 GiB

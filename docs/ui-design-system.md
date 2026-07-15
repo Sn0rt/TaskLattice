@@ -21,15 +21,30 @@ prioritizes the operating task and current state over marketing expression.
 ## Visual intent
 
 - Temperament: operational, precise, direct, and calm.
-- Brand signal: signal green on deep ink, used for readiness, progress, and
-  primary conversion rather than general decoration.
-- Neutral system: warm off-white on the public and auth surfaces; neutral white
-  and soft gray in the dense control console.
-- Typography: Geist Variable with a compact display scale and readable body
-  line height.
-- Shape: rounded controls and surfaces, but hierarchy comes from spacing,
-  borders, density, and contrast rather than a wall of equal cards.
+- Brand signal: `#4339ff` is the action and navigation accent. The lattice logo
+  uses a restrained cyan signal node to preserve the orchestration identity
+  without turning every component into brand decoration.
+- Neutral system: the reference-derived `#fafafa` field, `#191a1b` ink,
+  `#f2f2f2` secondary planes, and low-opacity ink washes.
+- Typography: `Noto Serif SC` for display and section headings; `PingFang SC`,
+  `Noto Sans SC`, and `Hanken Grotesk` for interface text; `Chivo Mono` and
+  `JetBrains Mono` for identifiers and operational evidence.
+- Shape: one-pixel rules, square working surfaces, and zero-radius controls.
+  Hierarchy comes from serif display type, spacing, density, and section lines
+  rather than shadows or a wall of equal cards.
 - Motion: short state transitions only. Honor `prefers-reduced-motion`.
+
+### Logo contract
+
+- The mark is a seven-node triangular lattice: isolated runtime nodes become a
+  connected orchestration boundary and converge on one execution point.
+- The primary lockup uses `TALI` as the compact wordmark and `TaskLattice` as
+  the durable product name. The mark remains recognizable without the wordmark
+  in collapsed navigation and favicon contexts.
+- Light surfaces use a darker cyan signal for contrast; dark assets use the
+  storyboard cyan `#42e3ff`.
+- The public-page entrance draws the lattice before revealing its nodes. The
+  protected console stays static, and reduced-motion mode suppresses the draw.
 
 ## Navigation contract
 
@@ -82,8 +97,9 @@ audience, expiry, and provider signing-key validation.
 - Provide a specific recovery action for failure and empty states.
 - Keep animation under 300 milliseconds unless a documented spatial transition
   needs more time; animate transform and opacity by default.
-- Avoid purple-blue default gradients, indiscriminate blur, emoji iconography,
-  decorative bounce, and repeated equal-weight cards.
+- Avoid gradients, indiscriminate blur, emoji iconography, decorative bounce,
+  and repeated equal-weight cards. Purple is reserved for explicit interactive
+  emphasis and never used as an ambient gradient.
 
 ## Evidence gate
 

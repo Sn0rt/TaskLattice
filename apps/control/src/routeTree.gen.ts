@@ -9,22 +9,56 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TicketsRouteImport } from './routes/tickets'
+import { Route as SkillsRouteImport } from './routes/skills'
+import { Route as SandboxesRouteImport } from './routes/sandboxes'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as InstancesRouteImport } from './routes/instances'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as ApiQuotaRouteImport } from './routes/api-quota'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentsIndexRouteImport } from './routes/agents/index'
+import { Route as RequestsNewRouteImport } from './routes/requests/new'
+import { Route as MonitorPerformanceRouteImport } from './routes/monitor/performance'
+import { Route as MonitorCostRouteImport } from './routes/monitor/cost'
+import { Route as MonitorAuditRouteImport } from './routes/monitor/audit'
 import { Route as AuthSsoCompleteRouteImport } from './routes/auth/sso-complete'
 import { Route as AgentsNewRouteImport } from './routes/agents/new'
 import { Route as AgentsAgentIdRouteImport } from './routes/agents/$agentId'
 
+const TicketsRoute = TicketsRouteImport.update({
+  id: '/tickets',
+  path: '/tickets',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SkillsRoute = SkillsRouteImport.update({
+  id: '/skills',
+  path: '/skills',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SandboxesRoute = SandboxesRouteImport.update({
+  id: '/sandboxes',
+  path: '/sandboxes',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const InstancesRoute = InstancesRouteImport.update({
+  id: '/instances',
+  path: '/instances',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuotaRoute = ApiQuotaRouteImport.update({
+  id: '/api-quota',
+  path: '/api-quota',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -35,6 +69,26 @@ const IndexRoute = IndexRouteImport.update({
 const AgentsIndexRoute = AgentsIndexRouteImport.update({
   id: '/agents/',
   path: '/agents/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RequestsNewRoute = RequestsNewRouteImport.update({
+  id: '/requests/new',
+  path: '/requests/new',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorPerformanceRoute = MonitorPerformanceRouteImport.update({
+  id: '/monitor/performance',
+  path: '/monitor/performance',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorCostRoute = MonitorCostRouteImport.update({
+  id: '/monitor/cost',
+  path: '/monitor/cost',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MonitorAuditRoute = MonitorAuditRouteImport.update({
+  id: '/monitor/audit',
+  path: '/monitor/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthSsoCompleteRoute = AuthSsoCompleteRouteImport.update({
@@ -55,74 +109,158 @@ const AgentsAgentIdRoute = AgentsAgentIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/api-quota': typeof ApiQuotaRoute
   '/dashboard': typeof DashboardRoute
+  '/instances': typeof InstancesRoute
   '/login': typeof LoginRoute
+  '/sandboxes': typeof SandboxesRoute
+  '/skills': typeof SkillsRoute
+  '/tickets': typeof TicketsRoute
   '/agents/$agentId': typeof AgentsAgentIdRoute
   '/agents/new': typeof AgentsNewRoute
   '/auth/sso-complete': typeof AuthSsoCompleteRoute
+  '/monitor/audit': typeof MonitorAuditRoute
+  '/monitor/cost': typeof MonitorCostRoute
+  '/monitor/performance': typeof MonitorPerformanceRoute
+  '/requests/new': typeof RequestsNewRoute
   '/agents/': typeof AgentsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/api-quota': typeof ApiQuotaRoute
   '/dashboard': typeof DashboardRoute
+  '/instances': typeof InstancesRoute
   '/login': typeof LoginRoute
+  '/sandboxes': typeof SandboxesRoute
+  '/skills': typeof SkillsRoute
+  '/tickets': typeof TicketsRoute
   '/agents/$agentId': typeof AgentsAgentIdRoute
   '/agents/new': typeof AgentsNewRoute
   '/auth/sso-complete': typeof AuthSsoCompleteRoute
+  '/monitor/audit': typeof MonitorAuditRoute
+  '/monitor/cost': typeof MonitorCostRoute
+  '/monitor/performance': typeof MonitorPerformanceRoute
+  '/requests/new': typeof RequestsNewRoute
   '/agents': typeof AgentsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/api-quota': typeof ApiQuotaRoute
   '/dashboard': typeof DashboardRoute
+  '/instances': typeof InstancesRoute
   '/login': typeof LoginRoute
+  '/sandboxes': typeof SandboxesRoute
+  '/skills': typeof SkillsRoute
+  '/tickets': typeof TicketsRoute
   '/agents/$agentId': typeof AgentsAgentIdRoute
   '/agents/new': typeof AgentsNewRoute
   '/auth/sso-complete': typeof AuthSsoCompleteRoute
+  '/monitor/audit': typeof MonitorAuditRoute
+  '/monitor/cost': typeof MonitorCostRoute
+  '/monitor/performance': typeof MonitorPerformanceRoute
+  '/requests/new': typeof RequestsNewRoute
   '/agents/': typeof AgentsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/api-quota'
     | '/dashboard'
+    | '/instances'
     | '/login'
+    | '/sandboxes'
+    | '/skills'
+    | '/tickets'
     | '/agents/$agentId'
     | '/agents/new'
     | '/auth/sso-complete'
+    | '/monitor/audit'
+    | '/monitor/cost'
+    | '/monitor/performance'
+    | '/requests/new'
     | '/agents/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/api-quota'
     | '/dashboard'
+    | '/instances'
     | '/login'
+    | '/sandboxes'
+    | '/skills'
+    | '/tickets'
     | '/agents/$agentId'
     | '/agents/new'
     | '/auth/sso-complete'
+    | '/monitor/audit'
+    | '/monitor/cost'
+    | '/monitor/performance'
+    | '/requests/new'
     | '/agents'
   id:
     | '__root__'
     | '/'
+    | '/api-quota'
     | '/dashboard'
+    | '/instances'
     | '/login'
+    | '/sandboxes'
+    | '/skills'
+    | '/tickets'
     | '/agents/$agentId'
     | '/agents/new'
     | '/auth/sso-complete'
+    | '/monitor/audit'
+    | '/monitor/cost'
+    | '/monitor/performance'
+    | '/requests/new'
     | '/agents/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  ApiQuotaRoute: typeof ApiQuotaRoute
   DashboardRoute: typeof DashboardRoute
+  InstancesRoute: typeof InstancesRoute
   LoginRoute: typeof LoginRoute
+  SandboxesRoute: typeof SandboxesRoute
+  SkillsRoute: typeof SkillsRoute
+  TicketsRoute: typeof TicketsRoute
   AgentsAgentIdRoute: typeof AgentsAgentIdRoute
   AgentsNewRoute: typeof AgentsNewRoute
   AuthSsoCompleteRoute: typeof AuthSsoCompleteRoute
+  MonitorAuditRoute: typeof MonitorAuditRoute
+  MonitorCostRoute: typeof MonitorCostRoute
+  MonitorPerformanceRoute: typeof MonitorPerformanceRoute
+  RequestsNewRoute: typeof RequestsNewRoute
   AgentsIndexRoute: typeof AgentsIndexRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tickets': {
+      id: '/tickets'
+      path: '/tickets'
+      fullPath: '/tickets'
+      preLoaderRoute: typeof TicketsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/skills': {
+      id: '/skills'
+      path: '/skills'
+      fullPath: '/skills'
+      preLoaderRoute: typeof SkillsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/sandboxes': {
+      id: '/sandboxes'
+      path: '/sandboxes'
+      fullPath: '/sandboxes'
+      preLoaderRoute: typeof SandboxesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
@@ -130,11 +268,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/instances': {
+      id: '/instances'
+      path: '/instances'
+      fullPath: '/instances'
+      preLoaderRoute: typeof InstancesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/dashboard': {
       id: '/dashboard'
       path: '/dashboard'
       fullPath: '/dashboard'
       preLoaderRoute: typeof DashboardRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api-quota': {
+      id: '/api-quota'
+      path: '/api-quota'
+      fullPath: '/api-quota'
+      preLoaderRoute: typeof ApiQuotaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/': {
@@ -149,6 +301,34 @@ declare module '@tanstack/react-router' {
       path: '/agents'
       fullPath: '/agents/'
       preLoaderRoute: typeof AgentsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/requests/new': {
+      id: '/requests/new'
+      path: '/requests/new'
+      fullPath: '/requests/new'
+      preLoaderRoute: typeof RequestsNewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor/performance': {
+      id: '/monitor/performance'
+      path: '/monitor/performance'
+      fullPath: '/monitor/performance'
+      preLoaderRoute: typeof MonitorPerformanceRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor/cost': {
+      id: '/monitor/cost'
+      path: '/monitor/cost'
+      fullPath: '/monitor/cost'
+      preLoaderRoute: typeof MonitorCostRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/monitor/audit': {
+      id: '/monitor/audit'
+      path: '/monitor/audit'
+      fullPath: '/monitor/audit'
+      preLoaderRoute: typeof MonitorAuditRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/auth/sso-complete': {
@@ -177,11 +357,20 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  ApiQuotaRoute: ApiQuotaRoute,
   DashboardRoute: DashboardRoute,
+  InstancesRoute: InstancesRoute,
   LoginRoute: LoginRoute,
+  SandboxesRoute: SandboxesRoute,
+  SkillsRoute: SkillsRoute,
+  TicketsRoute: TicketsRoute,
   AgentsAgentIdRoute: AgentsAgentIdRoute,
   AgentsNewRoute: AgentsNewRoute,
   AuthSsoCompleteRoute: AuthSsoCompleteRoute,
+  MonitorAuditRoute: MonitorAuditRoute,
+  MonitorCostRoute: MonitorCostRoute,
+  MonitorPerformanceRoute: MonitorPerformanceRoute,
+  RequestsNewRoute: RequestsNewRoute,
   AgentsIndexRoute: AgentsIndexRoute,
 }
 export const routeTree = rootRouteImport

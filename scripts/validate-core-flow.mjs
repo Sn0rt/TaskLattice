@@ -62,16 +62,34 @@ const socket = new WebSocket(new URL(session.websocketUrl, wsBase));
 
 const terminalEvidence = await new Promise((resolve, reject) => {
   let output = "";
+  let requestedTuiExit = false;
+  let sentRuntimeProbe = false;
+  const runtimeProbe =
+    "printf 'TALI_TERMINAL_OK\\n'; printf 'hostname='; cat /etc/hostname; openclaw --version; test -x /usr/local/bin/nemoclaw-start && curl -fsS http://127.0.0.1:18789/health >/dev/null && pgrep -f nemoclaw-start >/dev/null && printf 'NEMOCLAW_RUNTIME_OK\\n'\n";
   const timer = setTimeout(() => reject(new Error(`Terminal timeout: ${output}`)), 15_000);
-  socket.on("open", () =>
-    socket.send(
-      expectNemoClawRuntime
-        ? "printf 'TALI_TERMINAL_OK\\n'; printf 'hostname='; cat /etc/hostname; openclaw --version; test -x /usr/local/bin/nemoclaw-start && curl -fsS http://127.0.0.1:18789/health >/dev/null && pgrep -f nemoclaw-start >/dev/null && printf 'NEMOCLAW_RUNTIME_OK\\n'\n"
-        : "printf 'TALI_TERMINAL_OK\\nFIXTURE_RUNTIME_OK\\n'\n",
-    ),
-  );
+  socket.on("open", () => {
+    if (!expectNemoClawRuntime)
+      socket.send("printf 'TALI_TERMINAL_OK\\nFIXTURE_RUNTIME_OK\\n'\n");
+  });
   socket.on("message", (raw) => {
     output += raw.toString();
+    if (
+      expectNemoClawRuntime &&
+      !requestedTuiExit &&
+      output.includes("Connected to NemoClaw runtime")
+    ) {
+      requestedTuiExit = true;
+      socket.send("\x04");
+    }
+    if (
+      expectNemoClawRuntime &&
+      requestedTuiExit &&
+      !sentRuntimeProbe &&
+      output.includes("continuing in the Sandbox shell.")
+    ) {
+      sentRuntimeProbe = true;
+      socket.send(runtimeProbe);
+    }
     if (
       output.includes("TALI_TERMINAL_OK") &&
       (expectNemoClawRuntime

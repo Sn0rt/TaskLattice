@@ -1,0 +1,203 @@
+import { useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Activity, Box, Eye, ScrollText, ShieldCheck } from "lucide-react";
+import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
+import { PageHeader } from "@/components/layout/page-header";
+import { EmptyState } from "@/components/shared/empty-state";
+import { StatusDot } from "@/components/shared/status-dot";
+import { Button } from "@/components/ui/button";
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
+import { api } from "@/lib/api";
+import { cn } from "@/lib/utils";
+
+export const Route = createFileRoute("/sandboxes")({ component: Sandboxes });
+
+function Sandboxes() {
+  const [selectedId, setSelectedId] = useState<string>();
+  const [tab, setTab] = useState<"overview" | "activity">("activity");
+  const agents = useQuery({
+    queryKey: ["agents"],
+    queryFn: api.listAgents,
+    refetchInterval: 2_000,
+  });
+  const sandboxes = useMemo(() => agents.data ?? [], [agents.data]);
+  const selected =
+    sandboxes.find((agent) => agent.id === selectedId) ?? sandboxes[0];
+
+  useEffect(() => {
+    if (selected && selected.id !== selectedId) setSelectedId(selected.id);
+  }, [selected, selectedId]);
+
+  return (
+    <div className="space-y-6">
+      <PageHeader
+        eyebrow="Instance / Sandbox"
+        title="Sandboxes"
+        description="Inspect the isolation boundary where each Agent runs and review its scoped runtime evidence."
+      />
+
+      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <Card>
+          <CardHeader className="border-b">
+            <CardTitle>Sandbox list</CardTitle>
+            <CardDescription>
+              Runtime state is observed from the Sandbox boundary, not inferred
+              from a Pod identity.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="px-0">
+            {sandboxes.length ? (
+              <>
+                <div className="hidden grid-cols-[minmax(0,1.4fr)_1fr_0.7fr_auto] gap-3 border-b px-4 py-2 text-xs text-muted-foreground sm:grid">
+                  <span>Sandbox</span>
+                  <span>Agent instance</span>
+                  <span>Revision</span>
+                  <span>State</span>
+                </div>
+                {sandboxes.map((agent) => (
+                  <button
+                    key={agent.id}
+                    type="button"
+                    aria-pressed={selected?.id === agent.id}
+                    onClick={() => setSelectedId(agent.id)}
+                    className={cn(
+                      "grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-3 border-b px-4 py-3 text-left text-sm transition-colors last:border-b-0 hover:bg-muted/45 focus-visible:outline-2 focus-visible:outline-offset-[-2px] sm:grid-cols-[minmax(0,1.4fr)_1fr_0.7fr_auto]",
+                      selected?.id === agent.id &&
+                        "bg-muted/70 shadow-[inset_3px_0_0_var(--foreground)]",
+                    )}
+                  >
+                    <span className="min-w-0">
+                      <strong className="block truncate font-mono text-xs">
+                        {agent.sandboxName}
+                      </strong>
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        OpenShell Sandbox CR
+                      </span>
+                    </span>
+                    <span className="hidden truncate sm:block">{agent.name}</span>
+                    <span className="hidden font-mono text-xs sm:block">
+                      {agent.id.slice(0, 8)}
+                    </span>
+                    <AgentStatusBadge status={agent.status} />
+                  </button>
+                ))}
+              </>
+            ) : (
+              <EmptyState
+                icon={Box}
+                title="No Sandboxes observed"
+                description="Create an Instance to provision its Sandbox boundary."
+              />
+            )}
+          </CardContent>
+        </Card>
+
+        {selected ? (
+          <Card className="xl:sticky xl:top-24">
+            <CardHeader className="border-b">
+              <div className="flex items-center justify-between gap-3">
+                <StatusDot
+                  label={selected.runtimePhase ?? selected.status}
+                  tone={selected.status === "READY" ? "success" : "warning"}
+                />
+                <span className="text-xs text-muted-foreground">Scoped audit</span>
+              </div>
+              <CardTitle className="mt-3 break-all font-mono text-sm">
+                {selected.sandboxName}
+              </CardTitle>
+              <CardDescription>
+                Agent: {selected.name} · Pod realization:{" "}
+                {selected.status === "READY" ? "current" : "unavailable"}
+              </CardDescription>
+              <div className="mt-3 flex border-b">
+                {(["overview", "activity"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={tab === value}
+                    onClick={() => setTab(value)}
+                    className={cn(
+                      "min-h-11 border-b-2 border-transparent px-3 text-xs capitalize text-muted-foreground",
+                      tab === value && "border-foreground text-foreground",
+                    )}
+                  >
+                    {value}
+                  </button>
+                ))}
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {tab === "overview" ? (
+                <dl className="text-xs">
+                  {[
+                    ["Stable identity", selected.sandboxName],
+                    ["Instance", selected.id.slice(0, 8)],
+                    ["Pod", selected.status === "READY" ? "1 / 1" : "0 / 1"],
+                    ["Workspace", "Persistent PVC"],
+                    ["Policy", "tasklattice-managed"],
+                  ].map(([label, value]) => (
+                    <div
+                      key={label}
+                      className="flex min-h-10 items-center justify-between gap-3 border-b"
+                    >
+                      <dt className="text-muted-foreground">{label}</dt>
+                      <dd className="max-w-[65%] break-all text-right font-medium">
+                        {value}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <div className="space-y-1">
+                  {(selected.logs.length
+                    ? selected.logs.slice(-6)
+                    : ["No structured runtime events have been recorded yet."]
+                  ).map((line, index) => (
+                    <div
+                      key={`${index}-${line}`}
+                      className="grid grid-cols-[auto_1fr] gap-3 border-b py-3 text-xs last:border-b-0"
+                    >
+                      {index % 2 === 0 ? (
+                        <Activity className="mt-0.5 size-3.5 text-muted-foreground" />
+                      ) : (
+                        <ShieldCheck className="mt-0.5 size-3.5 text-muted-foreground" />
+                      )}
+                      <div>
+                        <strong className="font-medium">
+                          {index === 0 ? "Runtime event" : "Sandbox evidence"}
+                        </strong>
+                        <p className="mt-1 break-words leading-5 text-muted-foreground">
+                          {line}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="pt-2 text-xs leading-5 text-muted-foreground">
+                    Terminal keystrokes, full prompts, and file contents are not
+                    captured by default.
+                  </p>
+                </div>
+              )}
+              <Button asChild className="h-11 w-full">
+                <Link
+                  to="/agents/$agentId"
+                  params={{ agentId: selected.id }}
+                >
+                  {tab === "activity" ? <ScrollText /> : <Eye />}
+                  Open Agent detail
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : null}
+      </div>
+    </div>
+  );
+}

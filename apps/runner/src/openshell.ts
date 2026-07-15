@@ -101,10 +101,16 @@ export function openShellTerminalArguments(name: string): string[] {
     "--name",
     name,
     "--tty",
+    "--timeout",
+    "0",
+    "--env",
+    "TERM=xterm-256color",
+    "--env",
+    "COLORTERM=truecolor",
     "--",
     "/bin/bash",
     "-lc",
-    "openclaw tui --local; " +
+    "openclaw tui; " +
       "status=$?; " +
       "printf '\\r\\nOpenClaw TUI exited with status %s; continuing in the Sandbox shell.\\r\\n' \"$status\"; " +
       "exec /bin/bash -l",

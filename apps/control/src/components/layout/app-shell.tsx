@@ -1,26 +1,30 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
-  Bot,
+  Activity,
   Boxes,
-  ChartNoAxesCombined,
   ChevronDown,
+  CircleDollarSign,
   CircleHelp,
+  FilePlus2,
   Gauge,
   LayoutDashboard,
+  ListChecks,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
+  ScrollText,
   Settings,
-  ShieldCheck,
+  ShieldEllipsis,
   Sparkles,
   UserRound,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "@/components/auth/auth-provider";
+import { BrandLogo } from "@/components/brand/brand-logo";
 import {
   Tooltip,
   TooltipContent,
@@ -29,17 +33,63 @@ import {
 } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
-const disabledItems = [
-  [Boxes, "AI Services"],
-  [Sparkles, "Skills"],
-  [ShieldCheck, "Approvals"],
-  [ChartNoAxesCombined, "Usage & cost"],
-] as const;
+type WorkspaceRoute =
+  | "/api-quota"
+  | "/dashboard"
+  | "/instances"
+  | "/monitor/audit"
+  | "/monitor/cost"
+  | "/monitor/performance"
+  | "/requests/new"
+  | "/sandboxes"
+  | "/skills"
+  | "/tickets";
+
+const navGroups: Array<{
+  items: Array<[LucideIcon, string, WorkspaceRoute]>;
+  label: string;
+}> = [
+  { label: "Overview", items: [[LayoutDashboard, "Workspace", "/dashboard"]] },
+  { label: "API Quota", items: [[Gauge, "Quotas", "/api-quota"]] },
+  {
+    label: "Instance",
+    items: [
+      [Boxes, "Instances", "/instances"],
+      [ShieldEllipsis, "Sandboxes", "/sandboxes"],
+    ],
+  },
+  { label: "Skill", items: [[Sparkles, "Skills", "/skills"]] },
+  {
+    label: "Approval",
+    items: [
+      [FilePlus2, "Raise Request", "/requests/new"],
+      [ListChecks, "Ticket List", "/tickets"],
+    ],
+  },
+  {
+    label: "Monitor",
+    items: [
+      [CircleDollarSign, "Cost", "/monitor/cost"],
+      [Activity, "Performance", "/monitor/performance"],
+      [ScrollText, "Audit", "/monitor/audit"],
+    ],
+  },
+];
 
 const routeLabels: Record<string, string> = {
-  agents: "Agents",
+  agents: "Instances",
+  "api-quota": "API Quota",
   dashboard: "Overview",
-  new: "Create Agent",
+  instances: "Instances",
+  monitor: "Monitor",
+  new: "Create Instance",
+  requests: "Requests",
+  sandboxes: "Sandboxes",
+  skills: "Skills",
+  tickets: "Ticket List",
+  audit: "Audit",
+  cost: "Cost",
+  performance: "Performance",
 };
 
 function NavGroup({ children, collapsed, label }: { children: ReactNode; collapsed: boolean; label: string }) {
@@ -59,7 +109,7 @@ function NavItem({ active, collapsed, icon: Icon, label, onNavigate, to }: {
   icon: LucideIcon;
   label: string;
   onNavigate: () => void;
-  to: "/dashboard" | "/agents" | "/agents/new";
+  to: WorkspaceRoute;
 }) {
   const link = (
     <Link
@@ -67,10 +117,10 @@ function NavItem({ active, collapsed, icon: Icon, label, onNavigate, to }: {
       onClick={onNavigate}
       aria-current={active ? "page" : undefined}
       className={cn(
-        "group flex min-h-11 items-center rounded-xl text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
+        "group flex min-h-11 items-center rounded-md border-l-2 border-transparent text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-[-2px]",
         collapsed ? "justify-center px-2" : "gap-3 px-3",
         active
-          ? "bg-sidebar-accent font-semibold text-sidebar-accent-foreground"
+          ? "border-primary bg-sidebar-accent/55 font-semibold text-sidebar-accent-foreground"
           : "text-muted-foreground hover:bg-sidebar-accent/65 hover:text-sidebar-foreground",
       )}
     >
@@ -90,7 +140,7 @@ function DisabledNav({ collapsed, icon: Icon, label }: { collapsed: boolean; ico
         <button
           disabled
           className={cn(
-            "flex min-h-11 w-full cursor-not-allowed items-center rounded-xl text-left text-sm text-muted-foreground/45",
+            "flex min-h-11 w-full cursor-not-allowed items-center rounded-md text-left text-sm text-muted-foreground/45",
             collapsed ? "justify-center px-2" : "gap-3 px-3",
           )}
         >
@@ -107,6 +157,7 @@ function Breadcrumbs({ pathname }: { pathname: string }) {
   const parts = pathname.split("/").filter(Boolean);
   const labels = parts.map((part, index) => {
     if (index === 1 && parts[0] === "agents" && part !== "new") return "Agent detail";
+    if (index === 1 && parts[0] === "requests" && part === "new") return "Raise Request";
     return routeLabels[part] ?? part;
   });
   return (
@@ -125,7 +176,10 @@ export function AppShell() {
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const instancePath = pathname === "/agents" || (pathname.startsWith("/agents/") && pathname !== "/agents/new");
+  const isActive = (to: WorkspaceRoute) => {
+    if (to === "/instances") return pathname === "/instances" || pathname.startsWith("/agents");
+    return pathname === to;
+  };
   const initials = useMemo(
     () => (user?.displayName || user?.username || "User").split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase(),
     [user],
@@ -161,22 +215,26 @@ export function AppShell() {
   const sidebarContent = (isCollapsed: boolean) => (
     <>
       <div className={cn("flex h-16 shrink-0 items-center border-b border-sidebar-border", isCollapsed ? "justify-center px-2" : "gap-3 px-4")}>
-        <Link to="/dashboard" className="flex min-w-0 items-center gap-3 rounded-lg focus-visible:outline-2" aria-label="TaskLattice workspace">
-          <span className="brand-mark brand-mark-small" aria-hidden="true"><span /><span /><span /></span>
-          {isCollapsed ? null : <span className="min-w-0"><strong className="block truncate text-sm font-semibold">TaskLattice</strong><span className="block truncate text-[10px] uppercase tracking-[0.14em] text-muted-foreground">Agent operations</span></span>}
+        <Link to="/dashboard" className="flex min-h-11 min-w-0 items-center gap-3 rounded-sm focus-visible:outline-2" aria-label="TaskLattice workspace">
+          <BrandLogo compact={isCollapsed} />
         </Link>
       </div>
       <nav className="flex-1 space-y-6 overflow-y-auto overflow-x-hidden p-3" aria-label="Workspace navigation">
-        <NavGroup label="Workspace" collapsed={isCollapsed}>
-          <NavItem active={pathname === "/dashboard"} collapsed={isCollapsed} icon={LayoutDashboard} label="Overview" onNavigate={() => setMobileOpen(false)} to="/dashboard" />
-        </NavGroup>
-        <NavGroup label="Agents" collapsed={isCollapsed}>
-          <NavItem active={pathname === "/agents/new"} collapsed={isCollapsed} icon={Bot} label="Create Agent" onNavigate={() => setMobileOpen(false)} to="/agents/new" />
-          <NavItem active={instancePath} collapsed={isCollapsed} icon={Gauge} label="Agent instances" onNavigate={() => setMobileOpen(false)} to="/agents" />
-        </NavGroup>
-        <NavGroup label="Marketplace" collapsed={isCollapsed}>
-          {disabledItems.map(([Icon, label]) => <DisabledNav key={label} collapsed={isCollapsed} icon={Icon} label={label} />)}
-        </NavGroup>
+        {navGroups.map((group) => (
+          <NavGroup key={group.label} label={group.label} collapsed={isCollapsed}>
+            {group.items.map(([Icon, label, to]) => (
+              <NavItem
+                key={to}
+                active={isActive(to)}
+                collapsed={isCollapsed}
+                icon={Icon}
+                label={label}
+                onNavigate={() => setMobileOpen(false)}
+                to={to}
+              />
+            ))}
+          </NavGroup>
+        ))}
       </nav>
       <div className="shrink-0 border-t border-sidebar-border p-3">
         <DisabledNav collapsed={isCollapsed} icon={Settings} label="Platform settings" />
@@ -186,15 +244,15 @@ export function AppShell() {
             type="button"
             aria-expanded={accountOpen}
             onClick={() => setAccountOpen((value) => !value)}
-            className={cn("flex min-h-12 w-full items-center rounded-xl hover:bg-sidebar-accent focus-visible:outline-2", isCollapsed ? "justify-center" : "gap-3 px-2")}
+            className={cn("flex min-h-12 w-full items-center rounded-md hover:bg-sidebar-accent focus-visible:outline-2", isCollapsed ? "justify-center" : "gap-3 px-2")}
           >
             <span className="grid size-8 shrink-0 place-items-center rounded-full bg-primary text-[11px] font-bold text-primary-foreground">{initials}</span>
             {isCollapsed ? null : <><span className="min-w-0 flex-1 text-left"><strong className="block truncate text-xs">{user?.displayName}</strong><span className="block truncate text-[10px] text-muted-foreground">{user?.provider === "sso" ? "SSO account" : "Local account"}</span></span><ChevronDown className={cn("size-4 text-muted-foreground transition-transform", accountOpen && "rotate-180")} /></>}
           </button>
           {accountOpen ? (
-            <div className={cn("absolute bottom-[calc(100%+0.5rem)] z-50 rounded-xl border bg-popover p-2 text-popover-foreground shadow-xl", isCollapsed ? "left-0 w-56" : "inset-x-0")}>
+            <div className={cn("absolute bottom-[calc(100%+0.5rem)] z-50 rounded-md border bg-popover p-2 text-popover-foreground shadow-md", isCollapsed ? "left-0 w-56" : "inset-x-0")}>
               <div className="px-2 py-2"><p className="text-xs font-semibold">{user?.displayName}</p><p className="mt-1 truncate text-[11px] text-muted-foreground">{user?.email || user?.username}</p></div>
-              <button type="button" onClick={() => void logout()} className="flex min-h-10 w-full items-center gap-2 rounded-lg px-2 text-sm text-destructive hover:bg-destructive/10 focus-visible:outline-2"><LogOut className="size-4" />Sign out</button>
+              <button type="button" onClick={() => void logout()} className="flex min-h-11 w-full items-center gap-2 rounded-sm px-2 text-sm text-destructive hover:bg-destructive/10 focus-visible:outline-2"><LogOut className="size-4" />Sign out</button>
             </div>
           ) : null}
         </div>
@@ -211,14 +269,14 @@ export function AppShell() {
 
         {mobileOpen ? <button aria-label="Close navigation" className="fixed inset-0 z-40 bg-black/35 backdrop-blur-[1px] lg:hidden" onClick={() => setMobileOpen(false)} /> : null}
         <aside aria-hidden={!mobileOpen} className={cn("fixed inset-y-0 left-0 z-50 flex w-[min(88vw,20rem)] flex-col border-r bg-sidebar shadow-2xl transition-transform duration-200 lg:hidden", mobileOpen ? "translate-x-0" : "-translate-x-full")}>
-          <button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="absolute right-3 top-3 z-10 grid size-10 place-items-center rounded-lg hover:bg-sidebar-accent focus-visible:outline-2"><X className="size-5" /></button>
+          <button type="button" aria-label="Close navigation" onClick={() => setMobileOpen(false)} className="absolute right-3 top-2.5 z-10 grid size-11 place-items-center rounded-lg hover:bg-sidebar-accent focus-visible:outline-2"><X className="size-5" /></button>
           {sidebarContent(false)}
         </aside>
 
         <div className={cn("transition-[padding] duration-200", collapsed ? "lg:pl-[4.5rem]" : "lg:pl-[17.5rem]")}>
           <header className="sticky top-0 z-30 flex h-16 items-center gap-3 border-b bg-background/94 px-4 backdrop-blur-md sm:px-6 lg:px-8">
             <button type="button" onClick={() => setMobileOpen(true)} aria-label="Open navigation" aria-expanded={mobileOpen} className="grid size-11 place-items-center rounded-xl hover:bg-muted focus-visible:outline-2 lg:hidden"><Menu className="size-5" /></button>
-            <button type="button" onClick={toggleCollapsed} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed} className="hidden size-10 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 lg:grid">
+            <button type="button" onClick={toggleCollapsed} aria-label={collapsed ? "Expand navigation" : "Collapse navigation"} aria-expanded={!collapsed} className="hidden size-11 place-items-center rounded-xl text-muted-foreground hover:bg-muted hover:text-foreground focus-visible:outline-2 lg:grid">
               {collapsed ? <PanelLeftOpen className="size-5" /> : <PanelLeftClose className="size-5" />}
             </button>
             <Breadcrumbs pathname={pathname} />

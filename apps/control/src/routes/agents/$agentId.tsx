@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { AlertTriangle, Box, Cpu, ScrollText } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { AlertTriangle, ArrowRight, Bot, Box, Container, Cpu, ScrollText, type LucideIcon } from "lucide-react";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ProvisioningLog } from "@/components/agents/provisioning-log";
 import { AgentTerminal } from "@/components/terminal";
@@ -41,15 +41,39 @@ function AgentDetail() {
 
   const progress =
     agent.data.status === "READY" || agent.data.status === "FAILED" ? 100 : 56;
+  const hierarchy: Array<{ icon: LucideIcon; label: string; value: string }> = [
+    { icon: Bot, label: "Agent", value: "Desired identity" },
+    { icon: Cpu, label: "Instance", value: agent.data.id.slice(0, 8) },
+    { icon: Box, label: "Sandbox", value: agent.data.sandboxName },
+    { icon: Container, label: "Pod", value: "Ephemeral realization" },
+  ];
 
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow={`Agents / ${agent.data.id.slice(0, 8)}`}
+        eyebrow={`Instances / ${agent.data.id.slice(0, 8)}`}
         title={agent.data.name}
-        description={agent.data.description || "NemoClaw Agent instance"}
+        description={agent.data.description || "NemoClaw runtime Instance"}
         badge={<AgentStatusBadge status={agent.data.status} />}
       />
+      <div className="grid items-stretch border-y text-xs sm:grid-cols-[1fr_auto_1fr_auto_1fr_auto_1fr] sm:items-center">
+        {hierarchy.map(({ icon: Icon, label, value }, index) => (
+          <div key={label} className="contents">
+            <div className="min-w-0 px-3 py-3">
+              <div className="flex items-center gap-2 font-medium">
+                <Icon className="size-3.5" />
+                {label}
+              </div>
+              <div className="mt-1 truncate font-mono text-muted-foreground">
+                {value}
+              </div>
+            </div>
+            {index < 3 ? (
+              <ArrowRight className="mx-1 hidden size-3.5 text-muted-foreground sm:block" />
+            ) : null}
+          </div>
+        ))}
+      </div>
       {agent.data.status !== "READY" ? (
         <Card>
           <CardContent className="py-5">
@@ -83,13 +107,16 @@ function AgentDetail() {
         />
       </div>
       <Card>
-        <CardHeader>
+        <CardHeader className="border-b">
           <CardTitle className="flex items-center gap-2 text-base">
             <ScrollText className="size-4" />
             Provisioning evidence
           </CardTitle>
-          <CardDescription>
-            Sanitized Runtime Host output. Credentials are never included.
+          <CardDescription className="flex flex-wrap items-center justify-between gap-3">
+            <span>Sanitized Runtime Host output. Credentials are never included.</span>
+            <Link to="/sandboxes" className="font-medium text-foreground underline underline-offset-4">
+              Open Sandbox audit
+            </Link>
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -100,8 +127,9 @@ function AgentDetail() {
         <CardHeader>
           <CardTitle className="text-base">Terminal</CardTitle>
           <CardDescription>
-            Opens the DeepSeek-backed OpenClaw TUI inside the same Kubernetes
-            Sandbox Pod. Exiting the TUI leaves you at the Sandbox shell.
+            The OpenShell runtime opens the DeepSeek-backed OpenClaw TUI inside
+            the same Sandbox Pod. Fixture mode is labeled clearly and exposes a
+            transport-test shell instead of claiming that the TUI is running.
           </CardDescription>
         </CardHeader>
         <CardContent>

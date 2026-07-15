@@ -61,8 +61,8 @@ sequenceDiagram
     API-->>UI: Short-lived WebSocket URL
     UI->>API: WebSocket input/output
     API->>Runner: Authenticated WebSocket proxy
-    Runner->>OS: openshell sandbox exec --tty -- /bin/bash
-    OS->>SB: Interactive terminal into running Agent Pod
+    Runner->>OS: openshell sandbox exec --tty -- openclaw tui
+    OS->>SB: Gateway-backed TUI in the running Agent Pod
 ```
 
 ## Frontend organization
@@ -129,7 +129,10 @@ Terminal sessions are created through REST, expire after five minutes if unused,
 and are single-use. Following the proven Volcano Dashboard terminal flow, the
 WebSocket transports raw terminal text in both directions. The server emits a
 `Connected to ...` line only after the OpenShell PTY has been allocated. The
-frontend buffers output and keeps a session alive briefly across React remounts.
+frontend buffers output, sends bounded resize control frames, distinguishes the
+fixture shell from the NemoClaw TUI, and keeps a session alive briefly across
+React remounts. A connected PTY is not reported as TUI-ready until its first
+interactive frame arrives.
 
 The browser never connects directly to a Runtime Host and never receives the shared runner credential.
 

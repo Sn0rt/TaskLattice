@@ -25,8 +25,8 @@ function SsoComplete() {
   }, [loginWithToken]);
 
   return (
-    <main className="grid min-h-svh place-items-center bg-[#f4f3ee] p-6 text-[#171915]">
-      <div className="text-center"><LoaderCircle className="mx-auto size-6 animate-spin text-[#557d16]" /><p className="mt-4 text-sm text-[#5d6158]">Completing secure sign in…</p></div>
+    <main className="grid min-h-svh place-items-center bg-background p-6 text-foreground">
+      <div className="text-center"><LoaderCircle className="mx-auto size-6 animate-spin text-primary" /><p className="mt-4 text-sm text-muted-foreground">Completing secure sign in…</p></div>
     </main>
   );
 }

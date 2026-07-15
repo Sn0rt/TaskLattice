@@ -38,6 +38,8 @@ export const api = {
       method: "POST",
       body: JSON.stringify(input),
     }),
+  deleteAgent: (id: string) =>
+    request<void>(`/api/v1/agents/${id}`, { method: "DELETE" }),
   createTerminalSession: (id: string) =>
     request<TerminalSessionResponse>(
       `/api/v1/agents/${id}/terminal-sessions`,

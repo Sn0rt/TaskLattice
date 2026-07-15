@@ -1,5 +1,8 @@
 import express from "express";
-import type { RunnerSandbox } from "@tasklattice/contracts";
+import {
+  parseTerminalResize,
+  type RunnerSandbox,
+} from "@tasklattice/contracts";
 import { spawn } from "node:child_process";
 import { createServer } from "node:http";
 import type { Duplex } from "node:stream";
@@ -296,9 +299,9 @@ server.on("upgrade", async (request, socket, head) => {
       `[terminal ${connectionId}] allocating terminal for ${state.name}`,
     );
     if (mode === "fixture") {
-      const child = spawn("/bin/sh", [], {
+      const child = spawn("/bin/sh", ["-i"], {
         cwd: process.cwd(),
-        env: process.env,
+        env: { ...process.env, PS1: "tasklattice-fixture$ " },
         stdio: ["pipe", "pipe", "pipe"],
       });
       const send = (data: Buffer) =>
@@ -309,8 +312,14 @@ server.on("upgrade", async (request, socket, head) => {
       child.on("close", (exitCode) =>
         webSocket.close(1000, `Terminal exited ${exitCode ?? 1}`),
       );
-      webSocket.send(`Connected to fixture sandbox ${state.name}\r\n`);
-      webSocket.on("message", (raw) => child.stdin.write(raw.toString()));
+      webSocket.send(
+        `Connected to fixture shell ${state.name}\r\n` +
+          "Fixture mode validates terminal transport only; OpenClaw TUI requires the OpenShell runtime.\r\n",
+      );
+      webSocket.on("message", (raw) => {
+        const input = raw.toString();
+        if (!parseTerminalResize(input)) child.stdin.write(input);
+      });
       webSocket.on("close", () => {
         console.info(
           `[terminal ${connectionId}] fixture terminal disconnected`,
@@ -349,7 +358,10 @@ server.on("upgrade", async (request, socket, head) => {
         }
         if (webSocket.readyState === WebSocket.OPEN) webSocket.send(data);
       });
-      webSocket.send(`Connected to NemoClaw sandbox ${state.name}\r\n`);
+      webSocket.send(
+        `Connected to NemoClaw runtime ${state.name}\r\n` +
+          "Opening the OpenClaw TUI through the in-sandbox Gateway…\r\n",
+      );
       terminal.onExit(({ exitCode }) => {
         console.info(
           `[terminal ${connectionId}] PTY exited with code ${exitCode}`,
@@ -357,7 +369,12 @@ server.on("upgrade", async (request, socket, head) => {
         if (webSocket.readyState === WebSocket.OPEN)
           webSocket.close(1000, `Terminal exited ${exitCode}`);
       });
-      webSocket.on("message", (raw) => terminal.write(raw.toString()));
+      webSocket.on("message", (raw) => {
+        const input = raw.toString();
+        const resize = parseTerminalResize(input);
+        if (resize) terminal.resize(resize.cols, resize.rows);
+        else terminal.write(input);
+      });
       webSocket.on("close", () => {
         console.info(`[terminal ${connectionId}] browser disconnected`);
         try {

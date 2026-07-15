@@ -7,7 +7,9 @@ export type TerminalSessionEvent =
 export interface TerminalSession {
   buffer: string[];
   closeTimer: number | null;
+  connectionKind: "fixture" | "nemoclaw" | null;
   connected: boolean;
+  interactive: boolean;
   listeners: Set<(event: TerminalSessionEvent) => void>;
   socket: WebSocket;
 }
@@ -35,7 +37,9 @@ function createTerminalSession(key: string, url: string): TerminalSession {
   const session: TerminalSession = {
     buffer: [],
     closeTimer: null,
+    connectionKind: null,
     connected: false,
+    interactive: false,
     listeners: new Set(),
     socket: new WebSocket(url),
   };
@@ -45,7 +49,16 @@ function createTerminalSession(key: string, url: string): TerminalSession {
   session.socket.addEventListener("open", () => emit({ type: "open" }));
   session.socket.addEventListener("message", (event) => {
     void websocketText(event.data).then((data) => {
-      if (data.startsWith("Connected to ")) session.connected = true;
+      if (data.startsWith("Connected to fixture shell ")) {
+        session.connected = true;
+        session.connectionKind = "fixture";
+        session.interactive = true;
+      } else if (data.startsWith("Connected to NemoClaw runtime ")) {
+        session.connected = true;
+        session.connectionKind = "nemoclaw";
+      } else if (session.connected && data.length > 0) {
+        session.interactive = true;
+      }
       session.buffer.push(data);
       if (session.buffer.length > 5_000) session.buffer.shift();
       emit({ data, type: "message" });
@@ -93,4 +106,16 @@ export function releaseTerminalSession(key: string): void {
       session.socket.close();
     terminalSessions.delete(key);
   }, 5_000);
+}
+
+export function resetTerminalSession(key: string): void {
+  const session = terminalSessions.get(key);
+  if (!session) return;
+  if (session.closeTimer) window.clearTimeout(session.closeTimer);
+  terminalSessions.delete(key);
+  if (
+    session.socket.readyState === WebSocket.OPEN ||
+    session.socket.readyState === WebSocket.CONNECTING
+  )
+    session.socket.close(4001, "terminal retry requested");
 }
