@@ -52,7 +52,7 @@ function Instances() {
       <PageHeader
         eyebrow="Agent / Instance"
         title="Instances"
-        description="Select a row to open its actions. Use the Terminal shortcut at the end of a row to enter NemoClaw directly."
+        description="Select a row to open NemoClaw through its HTTP Endpoint, terminal, or full Instance detail."
         actions={
           <Button asChild className="h-11">
             <Link to="/agents/new"><Plus /> Create Instance</Link>

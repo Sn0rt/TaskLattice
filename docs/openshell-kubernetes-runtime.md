@@ -16,6 +16,10 @@ lifecycle. Each created Agent maps to an OpenShell `Sandbox` resource, a
 same-name Kubernetes Pod, and a workspace PVC. The browser terminal reaches the
 same Pod through OpenShell's gRPC exec relay.
 
+Generated Sandbox and Pod names use the short operational prefix `tali-` and
+stay at or below 28 characters because OpenShell uses the Sandbox name as part
+of its browser service-routing hostname.
+
 TaskLattice does not run the Docker-oriented `nemoclaw onboard` host lifecycle inside a
 privileged Pod. It uses OpenShell's Kubernetes driver while preserving the
 official in-sandbox runtime shape: OpenShell is PID 1, `nemoclaw-start` is its
@@ -70,22 +74,38 @@ creation the private runner request provides it to OpenShell, which creates the
 `tasklattice-deepseek` OpenAI-compatible provider and validates
 `deepseek-chat`/`deepseek-reasoner` through `inference set`.
 
-Expose the API and run the proof path:
+Expose the control API and the OpenShell service router in two terminals:
 
 ```sh
 kubectl -n tasklattice-sandboxes port-forward service/tasklattice-control 18081:80
+```
+
+```sh
+kubectl -n openshell port-forward service/openshell 8080:8080
+```
+
+Then run the proof path. The second forward makes the per-Instance
+`http://<sandbox>--webui.openshell.localhost:8080/` URL reachable from the
+browser and validator. The runner uses `OPENSHELL_SERVICE_BASE_URL` to install
+that exact routed Origin before NemoClaw seals and validates its configuration,
+then returns an authenticated URL whose token stays in the URL fragment:
+
+```sh
 TALI_BASE_URL=http://127.0.0.1:18081 TALI_EXPECT_NEMOCLAW_RUNTIME=1 npm run validate:core
 ```
 
 The validator proves all of the following before it deletes the Agent:
 
 1. REST creation reaches `READY`.
-2. A terminal WebSocket enters the same-name Sandbox Pod.
-3. `/etc/hostname` equals the Agent's `sandboxName`.
-4. `openclaw --version` returns the pinned version.
-5. `/usr/local/bin/nemoclaw-start` exists, remains running, and the gateway
+2. OpenShell publishes the NemoClaw Web UI as the named `webui` HTTP Endpoint,
+   the endpoint returns HTTP 200, and OpenClaw accepts its routed WebSocket
+   Origin.
+3. A terminal WebSocket enters the same-name Sandbox Pod.
+4. `/etc/hostname` equals the Agent's `sandboxName`.
+5. `openclaw --version` returns the pinned version.
+6. `/usr/local/bin/nemoclaw-start` exists, remains running, and the gateway
    answers `http://127.0.0.1:18789/health`.
-6. Agent deletion removes the REST resource and OpenShell runtime.
+7. Agent deletion removes the REST resource, HTTP Endpoint, and OpenShell runtime.
 
 Useful runtime inspection:
 

@@ -8,6 +8,32 @@ const providerName = process.env.OPENSHELL_DEEPSEEK_PROVIDER ?? "tasklattice-dee
 const nemoClawSandboxImage =
   process.env.OPENSHELL_SANDBOX_IMAGE ?? "tasklattice-nemoclaw-sandbox:0.3.0";
 const nemoClawGatewayPort = process.env.NEMOCLAW_DASHBOARD_PORT ?? "18789";
+const nemoClawWebUiService = "webui";
+const nemoClawBootstrapScript = `#!/usr/bin/env bash
+set -euo pipefail
+
+readonly cors_origin="\${1:?OpenClaw Web UI origin is required}"
+readonly dashboard_port="\${2:?OpenClaw dashboard port is required}"
+readonly config_file=/sandbox/.openclaw/openclaw.json
+readonly hash_file=/sandbox/.openclaw/.config-hash
+
+node - "$config_file" "$cors_origin" <<'NODE'
+const fs = require("node:fs");
+const [configFile, corsOrigin] = process.argv.slice(2);
+const config = JSON.parse(fs.readFileSync(configFile, "utf8"));
+const controlUi = (config.gateway ??= {}).controlUi ??= {};
+const origins = Array.isArray(controlUi.allowedOrigins)
+  ? controlUi.allowedOrigins
+  : [];
+controlUi.allowedOrigins = [...new Set([...origins, corsOrigin])];
+fs.writeFileSync(configFile, JSON.stringify(config, null, 2) + "\\n", {
+  mode: 0o660,
+});
+NODE
+
+(cd "$(dirname "$config_file")" && sha256sum "$(basename "$config_file")" >"$hash_file")
+exec env "NEMOCLAW_DASHBOARD_PORT=$dashboard_port" /usr/local/bin/nemoclaw-start
+`;
 
 export interface OpenShellSandbox {
   name: string;
@@ -55,6 +81,7 @@ export function deepSeekProviderCreateCommand(input: ProvisionInput): {
 export function openShellSandboxCreateArguments(
   input: ProvisionInput,
   instructionsFile: string,
+  bootstrapFile: string,
 ): string[] {
   return openShellArguments([
     "sandbox",
@@ -73,11 +100,14 @@ export function openShellSandboxCreateArguments(
     "tasklattice.ai/managed=true",
     "--upload",
     `${instructionsFile}:/sandbox/.openclaw/workspace/AGENTS.md`,
+    "--upload",
+    `${bootstrapFile}:/tmp/tali-nemoclaw-start`,
     "--no-tty",
     "--",
-    "env",
-    `NEMOCLAW_DASHBOARD_PORT=${nemoClawGatewayPort}`,
-    "/usr/local/bin/nemoclaw-start",
+    "/bin/bash",
+    "/tmp/tali-nemoclaw-start",
+    openShellWebUiOrigin(input.name),
+    nemoClawGatewayPort,
   ]);
 }
 
@@ -114,15 +144,152 @@ export function openShellTerminalArguments(name: string): string[] {
   ]);
 }
 
+export function openShellWebUiServiceArguments(
+  name: string,
+  action: "delete" | "expose" | "get",
+): string[] {
+  return openShellArguments([
+    "service",
+    action,
+    name,
+    ...(action === "expose" ? [nemoClawGatewayPort] : []),
+    nemoClawWebUiService,
+  ]);
+}
+
+export function openShellWebUiOrigin(name: string): string {
+  const base = new URL(
+    process.env.OPENSHELL_SERVICE_BASE_URL ??
+      "http://openshell.localhost:8080",
+  );
+  base.hostname = `${name}--${nemoClawWebUiService}.${base.hostname}`;
+  return base.origin;
+}
+
+export function openShellWebUiTokenArguments(name: string): string[] {
+  return openShellArguments([
+    "sandbox",
+    "exec",
+    "--name",
+    name,
+    "--",
+    "node",
+    "-e",
+    'const c=require("/sandbox/.openclaw/openclaw.json");process.stdout.write(c.gateway.auth.token)',
+  ]);
+}
+
+export function openShellWebUiOriginProbeArguments(
+  name: string,
+  endpointUrl: string,
+): string[] {
+  return openShellArguments([
+    "sandbox",
+    "exec",
+    "--name",
+    name,
+    "--",
+    "node",
+    "-e",
+    'const c=require("/sandbox/.openclaw/openclaw.json");if(!c.gateway?.controlUi?.allowedOrigins?.includes(process.argv[1]))process.exit(1)',
+    new URL(endpointUrl).origin,
+  ]);
+}
+
+export function tokenizedOpenClawUrl(endpointUrl: string, token: string): string {
+  const url = new URL(endpointUrl);
+  url.hash = new URLSearchParams({ token: token.trim() }).toString();
+  return url.toString();
+}
+
+export async function deleteOpenShellWebUiEndpoint(
+  name: string,
+): Promise<void> {
+  const result = await runCommand(
+    openShellBinary(),
+    openShellWebUiServiceArguments(name, "delete"),
+  );
+  const output = `${result.stdout}\n${result.stderr}`;
+  if (result.exitCode !== 0 && !output.includes("service endpoint not found"))
+    throw new Error(
+      result.stderr.trim() ||
+        result.stdout.trim() ||
+        "Unable to delete the OpenClaw Web UI endpoint.",
+    );
+}
+
+export function parseOpenShellServiceUrl(output: string): string | undefined {
+  const plain = output.replace(/\u001b\[[0-9;]*m/g, "");
+  const candidate = plain.match(/https?:\/\/[^\s]+/g)?.at(-1);
+  if (!candidate) return undefined;
+  try {
+    const url = new URL(candidate);
+    return url.protocol === "http:" || url.protocol === "https:"
+      ? url.toString()
+      : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+export async function ensureOpenShellWebUiEndpoint(
+  name: string,
+): Promise<string> {
+  const existing = await runCommand(
+    openShellBinary(),
+    openShellWebUiServiceArguments(name, "get"),
+  );
+  let endpointUrl = parseOpenShellServiceUrl(existing.stdout);
+  if (existing.exitCode !== 0 || !endpointUrl) {
+    const exposed = await runCommand(
+      openShellBinary(),
+      openShellWebUiServiceArguments(name, "expose"),
+    );
+    endpointUrl = parseOpenShellServiceUrl(exposed.stdout);
+    if (exposed.exitCode !== 0 || !endpointUrl)
+      throw new Error(
+        exposed.stderr.trim() ||
+          exposed.stdout.trim() ||
+          "OpenShell did not return a NemoClaw Web UI endpoint.",
+      );
+  }
+
+  if (new URL(endpointUrl).origin !== openShellWebUiOrigin(name))
+    throw new Error(
+      "The OpenShell service URL does not match OPENSHELL_SERVICE_BASE_URL; the OpenClaw Web UI origin was not authorized at sandbox startup.",
+    );
+
+  const originProbe = await runCommand(
+    openShellBinary(),
+    openShellWebUiOriginProbeArguments(name, endpointUrl),
+  );
+  if (originProbe.exitCode !== 0)
+    throw new Error(
+      "The OpenClaw gateway did not retain the routed Web UI origin allowlist.",
+    );
+
+  const token = await runCommand(
+    openShellBinary(),
+    openShellWebUiTokenArguments(name),
+  );
+  if (token.exitCode !== 0 || !token.stdout.trim())
+    throw new Error(
+      token.stderr.trim() || "Unable to resolve the OpenClaw Web UI token.",
+    );
+
+  return tokenizedOpenClawUrl(endpointUrl, token.stdout);
+}
+
 async function createOpenShellNemoClawSandbox(
   input: ProvisionInput,
   instructionsFile: string,
+  bootstrapFile: string,
 ): Promise<string[]> {
   const timeoutMs = Number(process.env.NEMOCLAW_START_TIMEOUT_MS ?? "180000");
   return new Promise((resolve, reject) => {
     const child = spawn(
       openShellBinary(),
-      openShellSandboxCreateArguments(input, instructionsFile),
+      openShellSandboxCreateArguments(input, instructionsFile, bootstrapFile),
       { env: process.env, stdio: ["ignore", "pipe", "pipe"] },
     );
     let output = "";
@@ -244,13 +411,19 @@ export async function provisionOpenShellSandbox(
 
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "tasklattice-openshell-"));
   const instructionsFile = join(temporaryDirectory, "AGENTS.md");
+  const bootstrapFile = join(temporaryDirectory, "tali-nemoclaw-start");
   try {
     await writeFile(
       instructionsFile,
       `## TaskLattice Agent Instructions\n\n${input.systemPrompt.trim()}\n`,
       { mode: 0o600 },
     );
-    return await createOpenShellNemoClawSandbox(input, instructionsFile);
+    await writeFile(bootstrapFile, nemoClawBootstrapScript, { mode: 0o600 });
+    return await createOpenShellNemoClawSandbox(
+      input,
+      instructionsFile,
+      bootstrapFile,
+    );
   } catch (error) {
     await deleteOpenShellSandbox(input.name).catch(() => undefined);
     throw error;

@@ -250,10 +250,21 @@ export const openApiDocument = {
               operationId: { type: "string" },
               runtimePhase: { type: "string" },
               logs: { type: "array", items: { type: "string" } },
+              httpEndpoint: { $ref: "#/components/schemas/HttpEndpoint" },
               error: { type: "string" },
             },
           },
         ],
+      },
+      HttpEndpoint: {
+        type: "object",
+        required: ["kind", "status"],
+        properties: {
+          kind: { type: "string", const: "openclaw-webui" },
+          status: { type: "string", enum: ["READY", "UNAVAILABLE"] },
+          url: { type: "string", format: "uri" },
+          reason: { type: "string" },
+        },
       },
       CreateProviderConnectionInput: {
         type: "object",

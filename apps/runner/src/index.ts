@@ -18,6 +18,8 @@ import {
 } from "./nemoclaw.js";
 import {
   deleteOpenShellSandbox,
+  deleteOpenShellWebUiEndpoint,
+  ensureOpenShellWebUiEndpoint,
   observeOpenShellSandbox,
   openShellArguments,
   openShellBinary,
@@ -96,6 +98,7 @@ async function provision(
     return;
   }
   try {
+    let httpEndpoint: RunnerSandbox["httpEndpoint"];
     if (process.env.DEEPSEEK_VERIFY_ON_CREATE === "1") {
       await verifyDeepSeek(input);
       state.logs.push("DeepSeek provider preflight succeeded through AI SDK.");
@@ -117,6 +120,24 @@ async function provision(
         "NemoClaw supervisor started the OpenClaw Agent gateway.",
         "OpenClaw gateway health check: Ready",
       );
+      try {
+        httpEndpoint = {
+          kind: "openclaw-webui",
+          status: "READY",
+          url: await ensureOpenShellWebUiEndpoint(input.name),
+        };
+        state.logs.push("OpenClaw Web UI exposed through OpenShell service routing.");
+      } catch (error) {
+        httpEndpoint = {
+          kind: "openclaw-webui",
+          status: "UNAVAILABLE",
+          reason:
+            error instanceof Error
+              ? error.message
+              : "Unable to expose the OpenClaw Web UI.",
+        };
+        state.logs.push(`OpenClaw Web UI unavailable: ${httpEndpoint.reason}`);
+      }
     } else {
       const command = onboardCommand(input);
       state.logs.push("Starting NemoClaw non-interactive onboarding.");
@@ -131,7 +152,12 @@ async function provision(
         "Agent instructions installed in the OpenClaw workspace.",
       );
     }
-    states.set(input.name, { ...state, phase: "READY", operationId });
+    states.set(input.name, {
+      ...state,
+      phase: "READY",
+      operationId,
+      ...(httpEndpoint ? { httpEndpoint } : {}),
+    });
   } catch (error) {
     states.set(input.name, {
       ...state,
@@ -203,7 +229,31 @@ app.get("/v1/sandboxes/:name", async (request, response, next) => {
           : normalized === "failed" || normalized === "error"
             ? "FAILED"
             : "PROVISIONING";
-      const next = { name, phase, logs: local?.logs ?? [] };
+      let httpEndpoint = local?.httpEndpoint;
+      if (phase === "READY" && httpEndpoint?.status !== "READY") {
+        try {
+          httpEndpoint = {
+            kind: "openclaw-webui",
+            status: "READY",
+            url: await ensureOpenShellWebUiEndpoint(name),
+          };
+        } catch (error) {
+          httpEndpoint = {
+            kind: "openclaw-webui",
+            status: "UNAVAILABLE",
+            reason:
+              error instanceof Error
+                ? error.message
+                : "Unable to expose the OpenClaw Web UI.",
+          };
+        }
+      }
+      const next: SandboxState = {
+        name,
+        phase,
+        logs: local?.logs ?? [],
+        ...(httpEndpoint ? { httpEndpoint } : {}),
+      };
       if (phase === "NOT_FOUND") states.delete(name);
       else states.set(name, next);
       return void response.json(next);
@@ -250,6 +300,7 @@ app.delete("/v1/sandboxes/:name", async (request, response, next) => {
     };
     states.set(name, { ...current, phase: "DESTROYING" });
     if (isOpenShell) {
+      await deleteOpenShellWebUiEndpoint(name);
       await deleteOpenShellSandbox(name);
     } else if (mode !== "fixture") {
       const result = await runCommand("nemoclaw", [name, "destroy", "--yes"]);

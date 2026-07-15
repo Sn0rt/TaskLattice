@@ -65,6 +65,20 @@ for (let attempt = 0; attempt < 120 && agent.status === "PROVISIONING"; attempt 
 }
 if (agent.status !== "READY") throw new Error(`Agent did not become READY: ${JSON.stringify(agent)}`);
 
+let httpEndpointEvidence;
+if (expectNemoClawRuntime) {
+  if (agent.httpEndpoint?.status !== "READY" || !agent.httpEndpoint.url)
+    throw new Error(`NemoClaw HTTP Endpoint unavailable: ${JSON.stringify(agent.httpEndpoint)}`);
+  const endpointResponse = await fetch(agent.httpEndpoint.url, {
+    signal: AbortSignal.timeout(10_000),
+  });
+  if (!endpointResponse.ok)
+    throw new Error(`NemoClaw HTTP Endpoint returned ${endpointResponse.status}.`);
+  httpEndpointEvidence = `${agent.httpEndpoint.kind} returned HTTP ${endpointResponse.status}.`;
+} else {
+  httpEndpointEvidence = "Not required for the fixture runtime.";
+}
+
 const runtime = await request("/api/v1/runtime");
 let terminalEvidence;
 if (!runtime.terminal.available) {
@@ -118,9 +132,14 @@ const destroyed = await request(`/api/v1/agents/${agent.id}`, { method: "DELETE"
 const deletedResource = await fetch(`${baseUrl}/api/v1/agents/${agent.id}`, {
   headers: { authorization: `Bearer ${authToken}` },
 });
+const deletedEndpoint = agent.httpEndpoint?.url
+  ? await fetch(agent.httpEndpoint.url)
+  : undefined;
 if (destroyed.status !== "DESTROYED" || deletedResource.status !== 404) {
   throw new Error(`Agent delete contract failed: ${JSON.stringify({ destroyed, getStatus: deletedResource.status })}`);
 }
+if (expectNemoClawRuntime && deletedEndpoint?.status !== 404)
+  throw new Error(`Deleted HTTP Endpoint returned ${deletedEndpoint?.status ?? "no response"}.`);
 
 console.log(JSON.stringify({
   result: "PASS",
@@ -129,6 +148,7 @@ console.log(JSON.stringify({
   status: agent.status,
   runtime: agent.runtime,
   provider: agent.provider,
+  httpEndpointEvidence,
   terminalEvidence: String(terminalEvidence).replace(/\u001b\[[0-9;?]*[A-Za-z]/g, "").trim(),
-  deleteEvidence: `${destroyed.status} / GET ${deletedResource.status}`,
+  deleteEvidence: `${destroyed.status} / Agent GET ${deletedResource.status} / Endpoint GET ${deletedEndpoint?.status ?? "N/A"}`,
 }, null, 2));

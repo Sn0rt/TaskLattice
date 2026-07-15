@@ -9,6 +9,12 @@ import {
   openShellNemoClawProbeArguments,
   openShellSandboxCreateArguments,
   openShellTerminalArguments,
+  openShellWebUiOrigin,
+  openShellWebUiOriginProbeArguments,
+  openShellWebUiServiceArguments,
+  openShellWebUiTokenArguments,
+  parseOpenShellServiceUrl,
+  tokenizedOpenClawUrl,
 } from "./openshell.js";
 
 describe("NemoClaw command contract", () => {
@@ -46,19 +52,27 @@ describe("OpenShell Kubernetes command contract", () => {
   });
 
   it("creates a managed Pod-backed sandbox with uploaded instructions", () => {
-    const args = openShellSandboxCreateArguments(input, "/tmp/AGENTS.md");
+    const args = openShellSandboxCreateArguments(
+      input,
+      "/tmp/AGENTS.md",
+      "/tmp/tali-nemoclaw-start",
+    );
     expect(args).toContain("tasklattice-nemoclaw-sandbox:0.3.0");
     expect(args).toContain("tasklattice.ai/managed=true");
     expect(args).toContain(
       "/tmp/AGENTS.md:/sandbox/.openclaw/workspace/AGENTS.md",
     );
+    expect(args).toContain(
+      "/tmp/tali-nemoclaw-start:/tmp/tali-nemoclaw-start",
+    );
     expect(args).toContain("tasklattice-deepseek");
     expect(args).toContain("1");
     expect(args).toContain("2Gi");
-    expect(args.slice(-3)).toEqual([
-      "env",
-      "NEMOCLAW_DASHBOARD_PORT=18789",
-      "/usr/local/bin/nemoclaw-start",
+    expect(args.slice(-4)).toEqual([
+      "/bin/bash",
+      "/tmp/tali-nemoclaw-start",
+      "http://tasklattice-research-a1b2c3d4--webui.openshell.localhost:8080",
+      "18789",
     ]);
   });
 
@@ -93,6 +107,59 @@ describe("OpenShell Kubernetes command contract", () => {
       "--",
     ]);
     expect(args.at(-1)).toBe("exec openclaw tui");
+  });
+
+  it("exposes the NemoClaw Web UI as a named OpenShell service", () => {
+    expect(openShellWebUiServiceArguments(input.name, "expose").slice(-5)).toEqual([
+      "service",
+      "expose",
+      input.name,
+      "18789",
+      "webui",
+    ]);
+    expect(openShellWebUiServiceArguments(input.name, "get").slice(-4)).toEqual([
+      "service",
+      "get",
+      input.name,
+      "webui",
+    ]);
+    expect(openShellWebUiServiceArguments(input.name, "delete").slice(-4)).toEqual([
+      "service",
+      "delete",
+      input.name,
+      "webui",
+    ]);
+  });
+
+  it("extracts the browser endpoint from colored OpenShell output", () => {
+    expect(
+      parseOpenShellServiceUrl(
+        "URL: \u001b[36mhttp://sandbox--webui.openshell.localhost:8080/\u001b[39m\n",
+      ),
+    ).toBe("http://sandbox--webui.openshell.localhost:8080/");
+    expect(parseOpenShellServiceUrl("service endpoint not found")).toBeUndefined();
+  });
+
+  it("authorizes the routed origin and bootstraps dashboard authentication", () => {
+    const endpoint =
+      "http://tali-research-a1b2c3d4--webui.openshell.localhost:8080/";
+    expect(openShellWebUiOrigin("tali-research-a1b2c3d4")).toBe(
+      "http://tali-research-a1b2c3d4--webui.openshell.localhost:8080",
+    );
+    expect(openShellWebUiOriginProbeArguments(input.name, endpoint)).toContain(
+      "http://tali-research-a1b2c3d4--webui.openshell.localhost:8080",
+    );
+    expect(openShellWebUiTokenArguments(input.name).slice(-6)).toEqual([
+      "--name",
+      input.name,
+      "--",
+      "node",
+      "-e",
+      'const c=require("/sandbox/.openclaw/openclaw.json");process.stdout.write(c.gateway.auth.token)',
+    ]);
+    expect(tokenizedOpenClawUrl(endpoint, "secret value\n")).toBe(
+      `${endpoint}#token=secret+value`,
+    );
   });
 
   it("round-trips bounded browser terminal resize messages", () => {

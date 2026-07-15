@@ -10,14 +10,15 @@ import { localDeepSeekConnectionId } from "../providers/provider-connection-serv
 
 const demoAgentId = "00000000-0000-4000-8000-000000000001";
 
-function sandboxName(name: string, id: string): string {
+export function agentSandboxName(name: string, id: string): string {
   const slug =
     name
       .toLowerCase()
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-|-$/g, "")
-      .slice(0, 38) || "agent";
-  return `tasklattice-${slug}-${id.slice(0, 8)}`;
+      .slice(0, 14)
+      .replace(/-$/, "") || "agent";
+  return `tali-${slug}-${id.slice(0, 8)}`;
 }
 
 function applyObservedState(agent: Agent, observed: RunnerSandbox): Agent {
@@ -29,11 +30,15 @@ function applyObservedState(agent: Agent, observed: RunnerSandbox): Agent {
         : observed.phase === "DESTROYING"
           ? "DESTROYING"
           : "PROVISIONING";
+  const { httpEndpoint: _previousHttpEndpoint, ...current } = agent;
   return {
-    ...agent,
+    ...current,
     status,
     runtimePhase: observed.phase,
     logs: observed.logs,
+    ...(observed.httpEndpoint
+      ? { httpEndpoint: observed.httpEndpoint }
+      : {}),
     updatedAt: new Date().toISOString(),
     ...(observed.operationId ? { operationId: observed.operationId } : {}),
     ...(observed.error ? { error: observed.error } : {}),
@@ -75,7 +80,7 @@ export class AgentService {
       ...input,
       provider: connection.provider,
       model: connection.model,
-      sandboxName: sandboxName(input.name, id),
+      sandboxName: agentSandboxName(input.name, id),
       status: "PROVISIONING",
       createdAt: now,
       updatedAt: now,
@@ -138,7 +143,7 @@ export class AgentService {
       description: "Seeded local Agent for the NemoClaw core-flow test.",
       runtime: "nemoclaw",
       providerConnectionId: localDeepSeekConnectionId,
-      sandboxName: "tasklattice-deepseek-demo-00000000",
+      sandboxName: agentSandboxName("DeepSeek NemoClaw Demo", demoAgentId),
       status: "PROVISIONING",
       provider: "deepseek",
       model: "deepseek-chat",

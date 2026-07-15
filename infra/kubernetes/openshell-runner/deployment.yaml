@@ -41,6 +41,8 @@ spec:
                   key: token
             - name: OPENSHELL_GATEWAY_ENDPOINT
               value: http://openshell.openshell.svc.cluster.local:8080
+            - name: OPENSHELL_SERVICE_BASE_URL
+              value: http://openshell.localhost:8080
             - name: OPENSHELL_SANDBOX_IMAGE
               value: tasklattice-nemoclaw-sandbox:0.3.0
           readinessProbe:

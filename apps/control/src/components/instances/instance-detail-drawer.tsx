@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import type { Agent } from "@tasklattice/contracts";
-import { Eye, Pencil, SquareTerminal, Trash2, X } from "lucide-react";
+import { ExternalLink, Eye, Globe2, Pencil, SquareTerminal, Trash2, X } from "lucide-react";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { Button } from "@/components/ui/button";
 
@@ -91,7 +91,30 @@ export function InstanceDetailDrawer({
           </dl>
 
           <div className="mt-6 grid gap-2">
-            <Button asChild className="h-11">
+            {instance.httpEndpoint?.status === "READY" && instance.httpEndpoint.url ? (
+              <Button asChild className="h-11">
+                <a
+                  href={instance.httpEndpoint.url}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  <Globe2 /> Open HTTP Endpoint <ExternalLink className="ml-auto" />
+                </a>
+              </Button>
+            ) : (
+              <>
+                <Button variant="outline" className="h-11" disabled>
+                  <Globe2 /> HTTP Endpoint
+                </Button>
+                <p className="text-xs leading-5 text-muted-foreground">
+                  {instance.status === "READY"
+                    ? instance.httpEndpoint?.reason ??
+                      "OpenShell has not published the Web UI endpoint yet."
+                    : "The Web UI endpoint becomes available when this Instance is Ready."}
+                </p>
+              </>
+            )}
+            <Button asChild variant="outline" className="h-11">
               <Link to="/agents/$agentId" params={{ agentId: instance.id }} hash="terminal">
                 <SquareTerminal /> Open terminal
               </Link>

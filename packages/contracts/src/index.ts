@@ -66,7 +66,15 @@ export interface Agent extends CreateAgentInput {
   operationId?: string;
   runtimePhase?: string;
   logs: string[];
+  httpEndpoint?: HttpEndpoint;
   error?: string;
+}
+
+export interface HttpEndpoint {
+  kind: "openclaw-webui";
+  status: "READY" | "UNAVAILABLE";
+  url?: string;
+  reason?: string;
 }
 
 export interface RunnerSandbox {
@@ -79,6 +87,7 @@ export interface RunnerSandbox {
     | "DESTROYING";
   operationId?: string;
   logs: string[];
+  httpEndpoint?: HttpEndpoint;
   error?: string;
 }
 

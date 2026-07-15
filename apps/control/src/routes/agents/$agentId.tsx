@@ -1,6 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, Bot, Box, Container, Cpu, ScrollText, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bot, Box, Container, Cpu, ExternalLink, Globe2, ScrollText, type LucideIcon } from "lucide-react";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ProvisioningLog } from "@/components/agents/provisioning-log";
 import { AgentTerminal } from "@/components/terminal";
@@ -13,12 +13,21 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { api } from "@/lib/api";
 
 export const Route = createFileRoute("/agents/$agentId")({
   component: AgentDetail,
 });
+
+function endpointDisplayUrl(value: string): string {
+  try {
+    return new URL(value).origin;
+  } catch {
+    return "OpenClaw Web UI";
+  }
+}
 
 function AgentDetail() {
   const { agentId } = Route.useParams();
@@ -123,6 +132,47 @@ function AgentDetail() {
           mono
         />
       </div>
+      <section
+        aria-labelledby="http-endpoint-title"
+        className="grid gap-4 border-y px-1 py-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
+      >
+        <div className="min-w-0">
+          <h2 id="http-endpoint-title" className="flex items-center gap-2 text-base font-semibold">
+            <Globe2 className="size-4" />
+            HTTP Endpoint
+          </h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Open the NemoClaw / OpenClaw Web UI exposed through OpenShell service routing.
+          </p>
+          {agent.data.httpEndpoint?.status === "READY" && agent.data.httpEndpoint.url ? (
+            <p className="mt-2 truncate font-mono text-xs text-muted-foreground">
+              {endpointDisplayUrl(agent.data.httpEndpoint.url)}
+            </p>
+          ) : (
+            <p role="status" className="mt-2 text-xs text-muted-foreground">
+              {agent.data.status === "READY"
+                ? agent.data.httpEndpoint?.reason ??
+                  "OpenShell has not published the Web UI endpoint yet."
+                : "Available after the Instance reaches Ready."}
+            </p>
+          )}
+        </div>
+        {agent.data.httpEndpoint?.status === "READY" && agent.data.httpEndpoint.url ? (
+          <Button asChild className="h-11">
+            <a
+              href={agent.data.httpEndpoint.url}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Open Web UI <ExternalLink />
+            </a>
+          </Button>
+        ) : (
+          <Button className="h-11" disabled>
+            Open Web UI
+          </Button>
+        )}
+      </section>
       <Card id="terminal" className="scroll-mt-24">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
