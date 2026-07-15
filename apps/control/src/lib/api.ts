@@ -4,6 +4,7 @@ import type {
   CreateAgentInput,
   ProviderConnection,
   RuntimeStatus,
+  SandboxAuditEvent,
   TerminalSessionResponse,
 } from "@tasklattice/contracts";
 import { clearAuthToken, getAuthToken } from "./auth-token";
@@ -48,6 +49,12 @@ export const api = {
   listAgents: async () =>
     (await request<{ data: Agent[] }>("/api/v1/agents")).data,
   getAgent: (id: string) => request<Agent>(`/api/v1/agents/${id}`),
+  getAgentAudit: async (id: string) =>
+    (
+      await request<{ data: SandboxAuditEvent[] }>(
+        `/api/v1/agents/${id}/audit`,
+      )
+    ).data,
   getRuntimeStatus: () => request<RuntimeStatus>("/api/v1/runtime"),
   createAgent: (input: CreateAgentInput) =>
     request<Agent>("/api/v1/agents", {

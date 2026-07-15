@@ -166,6 +166,17 @@ export const openApiDocument = {
         },
       },
     },
+    "/agents/{agentId}/audit": {
+      parameters: [agentId],
+      get: {
+        operationId: "getAgentAudit",
+        summary: "Read recent OpenShell OCSF audit events for an Agent sandbox",
+        responses: {
+          "200": { description: "Sandbox audit events", ...json({ type: "object", required: ["data"], properties: { data: { type: "array", items: { $ref: "#/components/schemas/SandboxAuditEvent" } } } }) },
+          "404": { $ref: "#/components/responses/Error" },
+        },
+      },
+    },
   },
   components: {
     securitySchemes: {
@@ -224,7 +235,7 @@ export const openApiDocument = {
       CreateAgentInput: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "runtime", "providerConnectionId", "provider", "model", "systemPrompt"],
+        required: ["name", "runtime", "providerConnectionId", "provider", "model", "policyId", "systemPrompt"],
         properties: {
           name: { type: "string", minLength: 3, maxLength: 48 },
           description: { type: "string", maxLength: 240, default: "" },
@@ -232,6 +243,7 @@ export const openApiDocument = {
           providerConnectionId: { type: "string", description: "Validated Provider connection selected for this Instance." },
           provider: { type: "string", const: "deepseek" },
           model: { type: "string", enum: ["deepseek-chat", "deepseek-reasoner"] },
+          policyId: { type: "string", enum: ["restricted", "github-readonly", "github-full-access", "package-install"], default: "restricted" },
           systemPrompt: { type: "string", minLength: 10, maxLength: 8000 },
         },
       },
@@ -269,13 +281,30 @@ export const openApiDocument = {
       CreateProviderConnectionInput: {
         type: "object",
         additionalProperties: false,
-        required: ["name", "provider", "endpoint", "model", "apiKey"],
+        required: ["name", "provider", "endpoint", "model", "inputFeePerMillionTokens", "outputFeePerMillionTokens", "apiKey"],
         properties: {
           name: { type: "string", minLength: 3, maxLength: 48 },
           provider: { type: "string", const: "deepseek" },
           endpoint: { type: "string", format: "uri" },
           model: { type: "string", enum: ["deepseek-chat", "deepseek-reasoner"] },
+          inputFeePerMillionTokens: { type: "number", minimum: 0 },
+          outputFeePerMillionTokens: { type: "number", minimum: 0 },
           apiKey: { type: "string", minLength: 8, writeOnly: true },
+        },
+      },
+      SandboxAuditEvent: {
+        type: "object",
+        required: ["id", "timestamp", "source", "category", "severity", "decision", "summary", "raw"],
+        properties: {
+          id: { type: "string" },
+          timestamp: { type: "string", format: "date-time" },
+          source: { type: "string", enum: ["gateway", "sandbox", "unknown"] },
+          category: { type: "string" },
+          severity: { type: "string", enum: ["INFO", "LOW", "MED", "HIGH", "CRIT", "UNKNOWN"] },
+          decision: { type: "string", enum: ["ALLOWED", "DENIED", "BLOCKED", "APPROVED", "REJECTED", "OBSERVED"] },
+          summary: { type: "string" },
+          policy: { type: "string" },
+          raw: { type: "string" },
         },
       },
       ProviderConnectionValidationCheck: {

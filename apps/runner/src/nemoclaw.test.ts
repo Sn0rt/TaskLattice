@@ -7,6 +7,7 @@ import { nemoClawTerminalArguments, onboardCommand } from "./nemoclaw.js";
 import {
   deepSeekProviderCreateCommand,
   openShellNemoClawProbeArguments,
+  openShellAuditArguments,
   openShellSandboxCreateArguments,
   openShellTerminalArguments,
   openShellWebUiOrigin,
@@ -14,6 +15,7 @@ import {
   openShellWebUiServiceArguments,
   openShellWebUiTokenArguments,
   parseOpenShellServiceUrl,
+  parseOpenShellAuditLog,
   tokenizedOpenClawUrl,
 } from "./openshell.js";
 
@@ -56,6 +58,7 @@ describe("OpenShell Kubernetes command contract", () => {
       input,
       "/tmp/AGENTS.md",
       "/tmp/tali-nemoclaw-start",
+      "/tmp/openshell-policy.yaml",
     );
     expect(args).toContain("tasklattice-nemoclaw-sandbox:0.3.0");
     expect(args).toContain("tasklattice.ai/managed=true");
@@ -66,6 +69,8 @@ describe("OpenShell Kubernetes command contract", () => {
       "/tmp/tali-nemoclaw-start:/tmp/tali-nemoclaw-start",
     );
     expect(args).toContain("tasklattice-deepseek");
+    expect(args).toContain("--policy");
+    expect(args).toContain("/tmp/openshell-policy.yaml");
     expect(args).toContain("1");
     expect(args).toContain("2Gi");
     expect(args.slice(-4)).toEqual([
@@ -74,6 +79,32 @@ describe("OpenShell Kubernetes command contract", () => {
       "http://tasklattice-research-a1b2c3d4--webui.openshell.localhost:8080",
       "18789",
     ]);
+  });
+
+  it("reads and parses OpenShell OCSF policy decisions", () => {
+    expect(openShellAuditArguments(input.name).slice(-6)).toEqual([
+      "logs",
+      input.name,
+      "--source",
+      "sandbox",
+      "--since",
+      "24h",
+    ]);
+    const events = parseOpenShellAuditLog(
+      "[1775014132.118] [sandbox] [OCSF ] [ocsf] NET:OPEN [INFO] ALLOWED /usr/bin/curl(58) -> api.github.com:443 [policy:github_api engine:opa]\n" +
+      "[1775014132.690] [sandbox] [OCSF ] [ocsf] NET:OPEN [MED] DENIED /usr/bin/curl(64) -> httpbin.org:443 [policy:- engine:opa] [reason:no matching policy]\n" +
+      "[1775014113.058] [sandbox] [INFO ] [openshell_sandbox] Starting sandbox\n",
+    );
+    expect(events).toHaveLength(2);
+    expect(events[0]).toMatchObject({
+      category: "NET:OPEN",
+      severity: "MED",
+      decision: "DENIED",
+    });
+    expect(events[1]).toMatchObject({
+      decision: "ALLOWED",
+      policy: "github_api",
+    });
   });
 
   it("only marks the runtime healthy after the NemoClaw gateway responds", () => {

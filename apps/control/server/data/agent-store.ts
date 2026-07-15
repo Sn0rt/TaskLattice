@@ -1,6 +1,20 @@
 import { DatabaseSync } from "node:sqlite";
 import type { Agent, ProviderConnection } from "@tasklattice/contracts";
 
+function parseAgent(payload: string): Agent {
+  const agent = JSON.parse(payload) as Agent;
+  return agent.policyId ? agent : { ...agent, policyId: "restricted" };
+}
+
+function parseProviderConnection(payload: string): ProviderConnection {
+  const connection = JSON.parse(payload) as ProviderConnection;
+  return {
+    ...connection,
+    inputFeePerMillionTokens: connection.inputFeePerMillionTokens ?? 0,
+    outputFeePerMillionTokens: connection.outputFeePerMillionTokens ?? 0,
+  };
+}
+
 export class AgentStore {
   private readonly database: DatabaseSync;
 
@@ -43,7 +57,7 @@ export class AgentStore {
     const row = this.database
       .prepare("SELECT payload FROM agents WHERE id = ?")
       .get(id) as { payload: string } | undefined;
-    return row ? (JSON.parse(row.payload) as Agent) : undefined;
+    return row ? parseAgent(row.payload) : undefined;
   }
 
   list(): Agent[] {
@@ -53,7 +67,7 @@ export class AgentStore {
         .all() as Array<{
         payload: string;
       }>
-    ).map((row) => JSON.parse(row.payload) as Agent);
+    ).map((row) => parseAgent(row.payload));
   }
 
   delete(id: string): void {
@@ -91,7 +105,7 @@ export class AgentStore {
     const row = this.database
       .prepare("SELECT payload FROM provider_connections WHERE id = ?")
       .get(id) as { payload: string } | undefined;
-    return row ? (JSON.parse(row.payload) as ProviderConnection) : undefined;
+    return row ? parseProviderConnection(row.payload) : undefined;
   }
 
   listProviderConnections(): ProviderConnection[] {
@@ -101,7 +115,7 @@ export class AgentStore {
           "SELECT payload FROM provider_connections ORDER BY created_at DESC",
         )
         .all() as Array<{ payload: string }>
-    ).map((row) => JSON.parse(row.payload) as ProviderConnection);
+    ).map((row) => parseProviderConnection(row.payload));
   }
 
   getProviderConnectionCredential(id: string): string | undefined {

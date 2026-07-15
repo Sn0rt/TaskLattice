@@ -5,6 +5,7 @@ import {
   CheckCircle2,
   CircleX,
   KeyRound,
+  CircleDollarSign,
   Plus,
   PlugZap,
   RefreshCw,
@@ -18,6 +19,7 @@ import type {
 } from "@tasklattice/contracts";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
+import { MetricCard } from "@/components/shared/metric-card";
 import { StatusDot } from "@/components/shared/status-dot";
 import { Button } from "@/components/ui/button";
 import {
@@ -47,6 +49,8 @@ const initialForm = {
   name: "DeepSeek production",
   endpoint: "https://api.deepseek.com",
   model: "deepseek-chat" as AgentModel,
+  inputFeePerMillionTokens: 0,
+  outputFeePerMillionTokens: 0,
   apiKey: "",
 };
 
@@ -62,6 +66,14 @@ function ProvidersPage() {
   });
   const selected = connections.data?.find(
     (connection) => connection.id === selectedId,
+  );
+  const aggregateInputFee = (connections.data ?? []).reduce(
+    (total, connection) => total + (connection.inputFeePerMillionTokens ?? 0),
+    0,
+  );
+  const aggregateOutputFee = (connections.data ?? []).reduce(
+    (total, connection) => total + (connection.outputFeePerMillionTokens ?? 0),
+    0,
   );
 
   useEffect(() => {
@@ -103,6 +115,8 @@ function ProvidersPage() {
       endpoint: form.endpoint,
       model: form.model,
       apiKey: form.apiKey,
+      inputFeePerMillionTokens: form.inputFeePerMillionTokens,
+      outputFeePerMillionTokens: form.outputFeePerMillionTokens,
     });
   };
 
@@ -134,6 +148,22 @@ function ProvidersPage() {
         </p>
       ) : null}
 
+      <section aria-labelledby="provider-cost-title" className="space-y-3">
+        <div>
+          <h2 id="provider-cost-title" className="flex items-center gap-2 font-serif text-lg font-medium">
+            <CircleDollarSign className="size-4" /> Endpoint fees
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Configured USD fee schedules aggregate here; each Endpoint keeps its own input and output rate.
+          </p>
+        </div>
+        <div className="grid gap-4 sm:grid-cols-3">
+          <MetricCard label="Endpoints" value={String(connections.data?.length ?? 0)} />
+          <MetricCard label="Aggregate input / 1M" value={`$${aggregateInputFee.toFixed(2)}`} />
+          <MetricCard label="Aggregate output / 1M" value={`$${aggregateOutputFee.toFixed(2)}`} />
+        </div>
+      </section>
+
       <Card>
         <CardHeader className="border-b">
           <CardTitle>Registered Provider</CardTitle>
@@ -155,7 +185,7 @@ function ProvidersPage() {
                   <SelectContent>
                     {connections.data.map((connection) => (
                       <SelectItem key={connection.id} value={connection.id}>
-                        {connection.name} · {connection.endpoint} · {connection.model} · credential stored · {connection.status}
+                        {connection.name} · {connection.endpoint} · {connection.model} · fee ${((connection.inputFeePerMillionTokens ?? 0) + (connection.outputFeePerMillionTokens ?? 0)).toFixed(2)} / 1M · {connection.status}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -352,6 +382,35 @@ function ProviderRegistrationDrawer({
                   </Select>
                 </div>
               </div>
+              <fieldset className="space-y-3 border p-4">
+                <legend className="px-1 text-sm font-medium">Endpoint fee · USD per 1M tokens</legend>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2">
+                    <Label htmlFor="provider-input-fee">Input fee</Label>
+                    <Input
+                      id="provider-input-fee"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.inputFeePerMillionTokens}
+                      onChange={(event) => onChange({ ...form, inputFeePerMillionTokens: event.target.valueAsNumber || 0 })}
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="provider-output-fee">Output fee</Label>
+                    <Input
+                      id="provider-output-fee"
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={form.outputFeePerMillionTokens}
+                      onChange={(event) => onChange({ ...form, outputFeePerMillionTokens: event.target.valueAsNumber || 0 })}
+                      required
+                    />
+                  </div>
+                </div>
+              </fieldset>
               <div className="space-y-2">
                 <Label htmlFor="provider-key">API key</Label>
                 <Input
@@ -445,10 +504,16 @@ function ConnectionPanel({
             tone={connection.status === "VALIDATED" ? "success" : "danger"}
           />
         </div>
-        <dl className="mt-5 grid gap-3 text-xs sm:grid-cols-3">
+        <dl className="mt-5 grid gap-3 text-xs sm:grid-cols-2 xl:grid-cols-4">
           <div className="border-y py-3">
             <dt className="text-muted-foreground">Model platform</dt>
             <dd className="mt-1 font-medium">DeepSeek · Pi</dd>
+          </div>
+          <div className="border-y py-3">
+            <dt className="text-muted-foreground">Endpoint fee</dt>
+            <dd className="mt-1 font-medium">
+              ${(connection.inputFeePerMillionTokens ?? 0).toFixed(2)} in · ${(connection.outputFeePerMillionTokens ?? 0).toFixed(2)} out / 1M
+            </dd>
           </div>
           <div className="border-y py-3">
             <dt className="text-muted-foreground">Model</dt>

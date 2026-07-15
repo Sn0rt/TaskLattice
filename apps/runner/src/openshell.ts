@@ -2,6 +2,7 @@ import { spawn } from "node:child_process";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { SandboxAuditEvent } from "@tasklattice/contracts";
 import { runCommand, type ProvisionInput } from "./nemoclaw.js";
 
 const providerName = process.env.OPENSHELL_DEEPSEEK_PROVIDER ?? "tasklattice-deepseek";
@@ -53,6 +54,81 @@ export function openShellArguments(args: string[]): string[] {
   ];
 }
 
+export function openShellAuditArguments(name: string): string[] {
+  return openShellArguments([
+    "logs",
+    name,
+    "--source",
+    "sandbox",
+    "--since",
+    "24h",
+  ]);
+}
+
+function auditTimestamp(value: string): string {
+  const epochSeconds = Number(value);
+  if (Number.isFinite(epochSeconds))
+    return new Date(epochSeconds * 1_000).toISOString();
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime())
+    ? new Date(0).toISOString()
+    : parsed.toISOString();
+}
+
+export function parseOpenShellAuditLog(output: string): SandboxAuditEvent[] {
+  return output
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .flatMap((raw, index) => {
+      const match = raw.match(
+        /^\[([^\]]+)\]\s+\[([^\]]+)\]\s+\[([^\]]+)\]\s+\[([^\]]+)\]\s+(\S+)\s+\[([^\]]+)\]\s+(.*)$/,
+      );
+      if (!match || match[3]?.trim() !== "OCSF") return [];
+      const body = match[7] ?? "";
+      const decision =
+        (["ALLOWED", "DENIED", "BLOCKED", "APPROVED", "REJECTED"] as const).find(
+          (value) => new RegExp(`\\b${value}\\b`).test(body),
+        ) ?? "OBSERVED";
+      const severity = match[6]?.trim().toUpperCase();
+      const normalizedSeverity = (
+        ["INFO", "LOW", "MED", "HIGH", "CRIT"] as const
+      ).find((value) => value === severity) ?? "UNKNOWN";
+      const source = match[2]?.trim();
+      const timestamp = auditTimestamp(match[1] ?? "");
+      const policy = body.match(/\[policy:([^\s\]]+)/)?.[1];
+      return [
+        {
+          id: `${timestamp}-${index}`,
+          timestamp,
+          source:
+            source === "gateway" || source === "sandbox" ? source : "unknown",
+          category: match[5] ?? "OCSF",
+          severity: normalizedSeverity,
+          decision,
+          summary: body,
+          ...(policy && policy !== "-" ? { policy } : {}),
+          raw,
+        } satisfies SandboxAuditEvent,
+      ];
+    })
+    .reverse();
+}
+
+export async function getOpenShellAuditEvents(
+  name: string,
+): Promise<SandboxAuditEvent[]> {
+  const result = await runCommand(
+    openShellBinary(),
+    openShellAuditArguments(name),
+  );
+  if (result.exitCode !== 0)
+    throw new Error(
+      result.stderr.trim() || "Unable to read OpenShell sandbox audit logs.",
+    );
+  return parseOpenShellAuditLog(result.stdout);
+}
+
 export function deepSeekProviderCreateCommand(input: ProvisionInput): {
   args: string[];
   env: NodeJS.ProcessEnv;
@@ -82,6 +158,7 @@ export function openShellSandboxCreateArguments(
   input: ProvisionInput,
   instructionsFile: string,
   bootstrapFile: string,
+  policyFile: string,
 ): string[] {
   return openShellArguments([
     "sandbox",
@@ -96,6 +173,8 @@ export function openShellSandboxCreateArguments(
     process.env.OPENSHELL_SANDBOX_MEMORY ?? "2Gi",
     "--provider",
     providerName,
+    "--policy",
+    policyFile,
     "--label",
     "tasklattice.ai/managed=true",
     "--upload",
@@ -284,12 +363,18 @@ async function createOpenShellNemoClawSandbox(
   input: ProvisionInput,
   instructionsFile: string,
   bootstrapFile: string,
+  policyFile: string,
 ): Promise<string[]> {
   const timeoutMs = Number(process.env.NEMOCLAW_START_TIMEOUT_MS ?? "180000");
   return new Promise((resolve, reject) => {
     const child = spawn(
       openShellBinary(),
-      openShellSandboxCreateArguments(input, instructionsFile, bootstrapFile),
+      openShellSandboxCreateArguments(
+        input,
+        instructionsFile,
+        bootstrapFile,
+        policyFile,
+      ),
       { env: process.env, stdio: ["ignore", "pipe", "pipe"] },
     );
     let output = "";
@@ -412,6 +497,7 @@ export async function provisionOpenShellSandbox(
   const temporaryDirectory = await mkdtemp(join(tmpdir(), "tasklattice-openshell-"));
   const instructionsFile = join(temporaryDirectory, "AGENTS.md");
   const bootstrapFile = join(temporaryDirectory, "tali-nemoclaw-start");
+  const policyFile = join(temporaryDirectory, "openshell-policy.yaml");
   try {
     await writeFile(
       instructionsFile,
@@ -419,10 +505,14 @@ export async function provisionOpenShellSandbox(
       { mode: 0o600 },
     );
     await writeFile(bootstrapFile, nemoClawBootstrapScript, { mode: 0o600 });
+    await writeFile(policyFile, input.policyYaml ?? "version: 1\n", {
+      mode: 0o600,
+    });
     return await createOpenShellNemoClawSandbox(
       input,
       instructionsFile,
       bootstrapFile,
+      policyFile,
     );
   } catch (error) {
     await deleteOpenShellSandbox(input.name).catch(() => undefined);

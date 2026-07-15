@@ -2,12 +2,14 @@ import type {
   AgentModel,
   RunnerHealth,
   RunnerSandbox,
+  SandboxAuditEvent,
 } from "@tasklattice/contracts";
 
 export interface CreateSandboxInput {
   name: string;
   provider: "deepseek";
   model: AgentModel;
+  policyYaml: string;
   systemPrompt: string;
   apiKey?: string;
 }
@@ -55,6 +57,14 @@ export class NemoClawRunnerClient {
     return this.request<RunnerSandbox>(
       `/v1/sandboxes/${encodeURIComponent(name)}`,
     );
+  }
+
+  async getSandboxAudit(name: string): Promise<SandboxAuditEvent[]> {
+    return (
+      await this.request<{ data: SandboxAuditEvent[] }>(
+        `/v1/sandboxes/${encodeURIComponent(name)}/audit`,
+      )
+    ).data;
   }
 
   destroySandbox(name: string): Promise<RunnerSandbox> {

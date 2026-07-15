@@ -3,7 +3,9 @@ import type {
   Agent,
   CreateAgentInput,
   RunnerSandbox,
+  SandboxAuditEvent,
 } from "@tasklattice/contracts";
+import { sandboxPolicies } from "@tasklattice/contracts";
 import { AgentStore } from "../data/agent-store";
 import { NemoClawRunnerClient } from "../runtime/nemoclaw-runner-client";
 import { localDeepSeekConnectionId } from "../providers/provider-connection-service";
@@ -60,6 +62,13 @@ export class AgentService {
     return agent ? this.refresh(agent) : undefined;
   }
 
+  async getAudit(id: string): Promise<SandboxAuditEvent[] | undefined> {
+    const agent = this.store.get(id);
+    return agent
+      ? this.runner.getSandboxAudit(agent.sandboxName)
+      : undefined;
+  }
+
   async create(input: CreateAgentInput): Promise<Agent> {
     const connection = this.store.getProviderConnection(
       input.providerConnectionId,
@@ -73,6 +82,8 @@ export class AgentService {
       throw new Error(
         "The selected provider connection no longer has a backend credential.",
       );
+    const policy = sandboxPolicies.find((item) => item.id === input.policyId);
+    if (!policy) throw new Error("Select a supported OpenShell policy.");
     const id = randomUUID();
     const now = new Date().toISOString();
     let agent: Agent = {
@@ -95,6 +106,7 @@ export class AgentService {
             name: agent.sandboxName,
             provider: connection.provider,
             model: connection.model,
+            policyYaml: policy.policyYaml,
             systemPrompt: input.systemPrompt,
             apiKey,
           }),
@@ -147,6 +159,7 @@ export class AgentService {
       status: "PROVISIONING",
       provider: "deepseek",
       model: "deepseek-chat",
+      policyId: "restricted",
       systemPrompt:
         "You are the seeded TaskLattice test Agent. Complete requests inside the NemoClaw sandbox and report concise execution evidence.",
       createdAt: existing?.createdAt ?? now,
@@ -162,6 +175,7 @@ export class AgentService {
         name: agent.sandboxName,
         provider: agent.provider,
         model: agent.model,
+        policyYaml: sandboxPolicies[0].policyYaml,
         systemPrompt: agent.systemPrompt,
         apiKey,
       } as const;

@@ -1,6 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AlertTriangle, ArrowRight, Bot, Box, Container, Cpu, ExternalLink, Globe2, ScrollText, type LucideIcon } from "lucide-react";
+import { AlertTriangle, ArrowRight, Bot, Box, Container, Cpu, ExternalLink, FileLock2, Globe2, ScrollText, type LucideIcon } from "lucide-react";
+import { sandboxPolicies } from "@tasklattice/contracts";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { ProvisioningLog } from "@/components/agents/provisioning-log";
 import { AgentTerminal } from "@/components/terminal";
@@ -56,6 +57,9 @@ function AgentDetail() {
 
   const progress =
     agent.data.status === "READY" || agent.data.status === "FAILED" ? 100 : 56;
+  const policy = sandboxPolicies.find(
+    (item) => item.id === (agent.data.policyId ?? "restricted"),
+  );
   const hierarchy: Array<{ icon: LucideIcon; label: string; value: string }> = [
     { icon: Bot, label: "Agent", value: "Desired identity" },
     { icon: Cpu, label: "Instance", value: agent.data.id.slice(0, 8) },
@@ -119,7 +123,7 @@ function AgentDetail() {
           </CardContent>
         </Card>
       ) : null}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <DetailCard icon={Box} label="Runtime" value="NemoClaw / OpenClaw" />
         <DetailCard
           icon={Cpu}
@@ -130,6 +134,11 @@ function AgentDetail() {
           label="OpenShell Sandbox"
           value={agent.data.sandboxName}
           mono
+        />
+        <DetailCard
+          icon={FileLock2}
+          label="OpenShell Policy"
+          value={policy?.name ?? agent.data.policyId ?? "Restricted"}
         />
       </div>
       <section

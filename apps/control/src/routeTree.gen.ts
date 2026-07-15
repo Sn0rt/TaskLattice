@@ -13,15 +13,15 @@ import { Route as TicketsRouteImport } from './routes/tickets'
 import { Route as SkillsRouteImport } from './routes/skills'
 import { Route as SandboxesRouteImport } from './routes/sandboxes'
 import { Route as ProvidersRouteImport } from './routes/providers'
+import { Route as PolicyRouteImport } from './routes/policy'
+import { Route as McpRouteImport } from './routes/mcp'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as KnowledgeRouteImport } from './routes/knowledge'
 import { Route as InstancesRouteImport } from './routes/instances'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AgentsIndexRouteImport } from './routes/agents/index'
 import { Route as RequestsNewRouteImport } from './routes/requests/new'
-import { Route as MonitorPerformanceRouteImport } from './routes/monitor/performance'
-import { Route as MonitorCostRouteImport } from './routes/monitor/cost'
-import { Route as MonitorAuditRouteImport } from './routes/monitor/audit'
 import { Route as AuthSsoCompleteRouteImport } from './routes/auth/sso-complete'
 import { Route as AgentsNewRouteImport } from './routes/agents/new'
 import { Route as AgentsAgentIdRouteImport } from './routes/agents/$agentId'
@@ -46,9 +46,24 @@ const ProvidersRoute = ProvidersRouteImport.update({
   path: '/providers',
   getParentRoute: () => rootRouteImport,
 } as any)
+const PolicyRoute = PolicyRouteImport.update({
+  id: '/policy',
+  path: '/policy',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const McpRoute = McpRouteImport.update({
+  id: '/mcp',
+  path: '/mcp',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const KnowledgeRoute = KnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
   getParentRoute: () => rootRouteImport,
 } as any)
 const InstancesRoute = InstancesRouteImport.update({
@@ -76,21 +91,6 @@ const RequestsNewRoute = RequestsNewRouteImport.update({
   path: '/requests/new',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MonitorPerformanceRoute = MonitorPerformanceRouteImport.update({
-  id: '/monitor/performance',
-  path: '/monitor/performance',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MonitorCostRoute = MonitorCostRouteImport.update({
-  id: '/monitor/cost',
-  path: '/monitor/cost',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const MonitorAuditRoute = MonitorAuditRouteImport.update({
-  id: '/monitor/audit',
-  path: '/monitor/audit',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const AuthSsoCompleteRoute = AuthSsoCompleteRouteImport.update({
   id: '/auth/sso-complete',
   path: '/auth/sso-complete',
@@ -111,7 +111,10 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/instances': typeof InstancesRoute
+  '/knowledge': typeof KnowledgeRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/policy': typeof PolicyRoute
   '/providers': typeof ProvidersRoute
   '/sandboxes': typeof SandboxesRoute
   '/skills': typeof SkillsRoute
@@ -119,9 +122,6 @@ export interface FileRoutesByFullPath {
   '/agents/$agentId': typeof AgentsAgentIdRoute
   '/agents/new': typeof AgentsNewRoute
   '/auth/sso-complete': typeof AuthSsoCompleteRoute
-  '/monitor/audit': typeof MonitorAuditRoute
-  '/monitor/cost': typeof MonitorCostRoute
-  '/monitor/performance': typeof MonitorPerformanceRoute
   '/requests/new': typeof RequestsNewRoute
   '/agents/': typeof AgentsIndexRoute
 }
@@ -129,7 +129,10 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/instances': typeof InstancesRoute
+  '/knowledge': typeof KnowledgeRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/policy': typeof PolicyRoute
   '/providers': typeof ProvidersRoute
   '/sandboxes': typeof SandboxesRoute
   '/skills': typeof SkillsRoute
@@ -137,9 +140,6 @@ export interface FileRoutesByTo {
   '/agents/$agentId': typeof AgentsAgentIdRoute
   '/agents/new': typeof AgentsNewRoute
   '/auth/sso-complete': typeof AuthSsoCompleteRoute
-  '/monitor/audit': typeof MonitorAuditRoute
-  '/monitor/cost': typeof MonitorCostRoute
-  '/monitor/performance': typeof MonitorPerformanceRoute
   '/requests/new': typeof RequestsNewRoute
   '/agents': typeof AgentsIndexRoute
 }
@@ -148,7 +148,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/dashboard': typeof DashboardRoute
   '/instances': typeof InstancesRoute
+  '/knowledge': typeof KnowledgeRoute
   '/login': typeof LoginRoute
+  '/mcp': typeof McpRoute
+  '/policy': typeof PolicyRoute
   '/providers': typeof ProvidersRoute
   '/sandboxes': typeof SandboxesRoute
   '/skills': typeof SkillsRoute
@@ -156,9 +159,6 @@ export interface FileRoutesById {
   '/agents/$agentId': typeof AgentsAgentIdRoute
   '/agents/new': typeof AgentsNewRoute
   '/auth/sso-complete': typeof AuthSsoCompleteRoute
-  '/monitor/audit': typeof MonitorAuditRoute
-  '/monitor/cost': typeof MonitorCostRoute
-  '/monitor/performance': typeof MonitorPerformanceRoute
   '/requests/new': typeof RequestsNewRoute
   '/agents/': typeof AgentsIndexRoute
 }
@@ -168,7 +168,10 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/instances'
+    | '/knowledge'
     | '/login'
+    | '/mcp'
+    | '/policy'
     | '/providers'
     | '/sandboxes'
     | '/skills'
@@ -176,9 +179,6 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/agents/new'
     | '/auth/sso-complete'
-    | '/monitor/audit'
-    | '/monitor/cost'
-    | '/monitor/performance'
     | '/requests/new'
     | '/agents/'
   fileRoutesByTo: FileRoutesByTo
@@ -186,7 +186,10 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/instances'
+    | '/knowledge'
     | '/login'
+    | '/mcp'
+    | '/policy'
     | '/providers'
     | '/sandboxes'
     | '/skills'
@@ -194,9 +197,6 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/agents/new'
     | '/auth/sso-complete'
-    | '/monitor/audit'
-    | '/monitor/cost'
-    | '/monitor/performance'
     | '/requests/new'
     | '/agents'
   id:
@@ -204,7 +204,10 @@ export interface FileRouteTypes {
     | '/'
     | '/dashboard'
     | '/instances'
+    | '/knowledge'
     | '/login'
+    | '/mcp'
+    | '/policy'
     | '/providers'
     | '/sandboxes'
     | '/skills'
@@ -212,9 +215,6 @@ export interface FileRouteTypes {
     | '/agents/$agentId'
     | '/agents/new'
     | '/auth/sso-complete'
-    | '/monitor/audit'
-    | '/monitor/cost'
-    | '/monitor/performance'
     | '/requests/new'
     | '/agents/'
   fileRoutesById: FileRoutesById
@@ -223,7 +223,10 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   DashboardRoute: typeof DashboardRoute
   InstancesRoute: typeof InstancesRoute
+  KnowledgeRoute: typeof KnowledgeRoute
   LoginRoute: typeof LoginRoute
+  McpRoute: typeof McpRoute
+  PolicyRoute: typeof PolicyRoute
   ProvidersRoute: typeof ProvidersRoute
   SandboxesRoute: typeof SandboxesRoute
   SkillsRoute: typeof SkillsRoute
@@ -231,9 +234,6 @@ export interface RootRouteChildren {
   AgentsAgentIdRoute: typeof AgentsAgentIdRoute
   AgentsNewRoute: typeof AgentsNewRoute
   AuthSsoCompleteRoute: typeof AuthSsoCompleteRoute
-  MonitorAuditRoute: typeof MonitorAuditRoute
-  MonitorCostRoute: typeof MonitorCostRoute
-  MonitorPerformanceRoute: typeof MonitorPerformanceRoute
   RequestsNewRoute: typeof RequestsNewRoute
   AgentsIndexRoute: typeof AgentsIndexRoute
 }
@@ -268,11 +268,32 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProvidersRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/policy': {
+      id: '/policy'
+      path: '/policy'
+      fullPath: '/policy'
+      preLoaderRoute: typeof PolicyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/mcp': {
+      id: '/mcp'
+      path: '/mcp'
+      fullPath: '/mcp'
+      preLoaderRoute: typeof McpRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/login': {
       id: '/login'
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/knowledge': {
+      id: '/knowledge'
+      path: '/knowledge'
+      fullPath: '/knowledge'
+      preLoaderRoute: typeof KnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/instances': {
@@ -310,27 +331,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof RequestsNewRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/monitor/performance': {
-      id: '/monitor/performance'
-      path: '/monitor/performance'
-      fullPath: '/monitor/performance'
-      preLoaderRoute: typeof MonitorPerformanceRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitor/cost': {
-      id: '/monitor/cost'
-      path: '/monitor/cost'
-      fullPath: '/monitor/cost'
-      preLoaderRoute: typeof MonitorCostRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/monitor/audit': {
-      id: '/monitor/audit'
-      path: '/monitor/audit'
-      fullPath: '/monitor/audit'
-      preLoaderRoute: typeof MonitorAuditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth/sso-complete': {
       id: '/auth/sso-complete'
       path: '/auth/sso-complete'
@@ -359,7 +359,10 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRoute,
   InstancesRoute: InstancesRoute,
+  KnowledgeRoute: KnowledgeRoute,
   LoginRoute: LoginRoute,
+  McpRoute: McpRoute,
+  PolicyRoute: PolicyRoute,
   ProvidersRoute: ProvidersRoute,
   SandboxesRoute: SandboxesRoute,
   SkillsRoute: SkillsRoute,
@@ -367,9 +370,6 @@ const rootRouteChildren: RootRouteChildren = {
   AgentsAgentIdRoute: AgentsAgentIdRoute,
   AgentsNewRoute: AgentsNewRoute,
   AuthSsoCompleteRoute: AuthSsoCompleteRoute,
-  MonitorAuditRoute: MonitorAuditRoute,
-  MonitorCostRoute: MonitorCostRoute,
-  MonitorPerformanceRoute: MonitorPerformanceRoute,
   RequestsNewRoute: RequestsNewRoute,
   AgentsIndexRoute: AgentsIndexRoute,
 }

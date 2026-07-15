@@ -2,21 +2,21 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link, Outlet, useRouterState } from "@tanstack/react-router";
 import {
-  Activity,
   Boxes,
   ChevronDown,
-  CircleDollarSign,
   CircleHelp,
   FilePlus2,
+  FileLock2,
   Gauge,
   LayoutDashboard,
   ListChecks,
+  Network,
   LogOut,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
-  ScrollText,
+  ServerCog,
   Settings,
   ShieldEllipsis,
   Sparkles,
@@ -39,11 +39,11 @@ type WorkspaceRoute =
   | "/providers"
   | "/dashboard"
   | "/instances"
-  | "/monitor/audit"
-  | "/monitor/cost"
-  | "/monitor/performance"
   | "/requests/new"
   | "/sandboxes"
+  | "/knowledge"
+  | "/mcp"
+  | "/policy"
   | "/skills"
   | "/tickets";
 
@@ -58,22 +58,22 @@ const navGroups: Array<{
     items: [
       [Boxes, "Instances", "/instances"],
       [ShieldEllipsis, "Sandboxes", "/sandboxes"],
+      [FileLock2, "Policy", "/policy"],
     ],
   },
-  { label: "Skill", items: [[Sparkles, "Skills", "/skills"]] },
+  {
+    label: "Extensions",
+    items: [
+      [Sparkles, "Skills", "/skills"],
+      [ServerCog, "MCP Servers", "/mcp"],
+      [Network, "Knowledge Base", "/knowledge"],
+    ],
+  },
   {
     label: "Approval",
     items: [
       [FilePlus2, "Raise Request", "/requests/new"],
       [ListChecks, "Ticket List", "/tickets"],
-    ],
-  },
-  {
-    label: "Monitor",
-    items: [
-      [CircleDollarSign, "Cost", "/monitor/cost"],
-      [Activity, "Performance", "/monitor/performance"],
-      [ScrollText, "Audit", "/monitor/audit"],
     ],
   },
 ];
@@ -83,15 +83,14 @@ const routeLabels: Record<string, string> = {
   providers: "Providers",
   dashboard: "Overview",
   instances: "Instances",
-  monitor: "Monitor",
+  knowledge: "Knowledge Base",
+  mcp: "MCP Servers",
+  policy: "Policy",
   new: "Create Instance",
   requests: "Requests",
   sandboxes: "Sandboxes",
   skills: "Skills",
   tickets: "Ticket List",
-  audit: "Audit",
-  cost: "Cost",
-  performance: "Performance",
 };
 
 function NavGroup({ children, collapsed, label }: { children: ReactNode; collapsed: boolean; label: string }) {
@@ -258,42 +257,43 @@ export function AppShell() {
         {navGroups.map((group) => (
           <NavGroup key={group.label} label={group.label} collapsed={isCollapsed}>
             {group.items.map(([Icon, label, to]) => (
-              <NavItem
-                key={to}
-                active={isActive(to)}
-                collapsed={isCollapsed}
-                icon={Icon}
-                label={label}
-                onNavigate={() => setMobileOpen(false)}
-                {...(to === "/sandboxes" ? { runtimeState: openShellRuntime } : {})}
-                to={to}
-              />
+              <div key={to}>
+                <NavItem
+                  active={isActive(to)}
+                  collapsed={isCollapsed}
+                  icon={Icon}
+                  label={label}
+                  onNavigate={() => setMobileOpen(false)}
+                  {...(to === "/sandboxes" ? { runtimeState: openShellRuntime } : {})}
+                  to={to}
+                />
+                {to === "/sandboxes" && !isCollapsed ? (
+                  <Link
+                    to="/sandboxes"
+                    onClick={() => setMobileOpen(false)}
+                    className="mx-3 mb-2 mt-1 block border-l border-sidebar-border py-1.5 pl-3 text-[11px] leading-4 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-sidebar-foreground focus-visible:outline-2"
+                    aria-label={`OpenShell runtime ${openShellRuntime.label}. Open Sandboxes.`}
+                  >
+                    <span className="flex items-center justify-between gap-2">
+                      <span className="font-medium text-sidebar-foreground">OpenShell runtime</span>
+                      <span className="inline-flex items-center gap-1.5">
+                        <span
+                          className={cn(
+                            "size-1.5 rounded-full",
+                            openShellRuntime.tone === "success" && "bg-emerald-500",
+                            openShellRuntime.tone === "warning" && "bg-amber-500",
+                            openShellRuntime.tone === "danger" && "bg-destructive",
+                            openShellRuntime.tone === "neutral" && "bg-muted-foreground/50",
+                          )}
+                        />
+                        {openShellRuntime.label}
+                      </span>
+                    </span>
+                    <span className="mt-0.5 block">Sandbox execution layer</span>
+                  </Link>
+                ) : null}
+              </div>
             ))}
-            {group.label === "Agent" && !isCollapsed ? (
-              <Link
-                to="/sandboxes"
-                onClick={() => setMobileOpen(false)}
-                className="mx-3 mt-2 block border-l border-sidebar-border py-1.5 pl-3 text-[11px] leading-4 text-muted-foreground transition-colors hover:border-foreground/50 hover:text-sidebar-foreground focus-visible:outline-2"
-                aria-label={`OpenShell runtime ${openShellRuntime.label}. Open Sandboxes.`}
-              >
-                <span className="flex items-center justify-between gap-2">
-                  <span className="font-medium text-sidebar-foreground">OpenShell runtime</span>
-                  <span className="inline-flex items-center gap-1.5">
-                    <span
-                      className={cn(
-                        "size-1.5 rounded-full",
-                        openShellRuntime.tone === "success" && "bg-emerald-500",
-                        openShellRuntime.tone === "warning" && "bg-amber-500",
-                        openShellRuntime.tone === "danger" && "bg-destructive",
-                        openShellRuntime.tone === "neutral" && "bg-muted-foreground/50",
-                      )}
-                    />
-                    {openShellRuntime.label}
-                  </span>
-                </span>
-                <span className="mt-0.5 block">Sandbox execution layer</span>
-              </Link>
-            ) : null}
           </NavGroup>
         ))}
       </nav>

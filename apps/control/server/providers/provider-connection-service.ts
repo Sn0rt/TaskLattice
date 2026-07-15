@@ -40,6 +40,8 @@ export class ProviderConnectionService {
       provider: input.provider,
       endpoint: input.endpoint,
       model: input.model,
+      inputFeePerMillionTokens: input.inputFeePerMillionTokens,
+      outputFeePerMillionTokens: input.outputFeePerMillionTokens,
       credentialState: "STORED",
       status: "FAILED",
       checks: failedChecks(),
@@ -71,6 +73,8 @@ export class ProviderConnectionService {
         provider: "deepseek",
         endpoint: "https://api.deepseek.com",
         model: "deepseek-chat",
+        inputFeePerMillionTokens: 0,
+        outputFeePerMillionTokens: 0,
         credentialState: "STORED",
         status: "VALIDATED",
         checks: [
@@ -100,6 +104,8 @@ export class ProviderConnectionService {
         provider: connection.provider,
         endpoint: connection.endpoint,
         model: connection.model,
+        inputFeePerMillionTokens: connection.inputFeePerMillionTokens,
+        outputFeePerMillionTokens: connection.outputFeePerMillionTokens,
         apiKey,
       });
       const now = new Date().toISOString();

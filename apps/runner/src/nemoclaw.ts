@@ -9,6 +9,7 @@ export interface ProvisionInput {
   name: string;
   provider: "deepseek";
   model: "deepseek-chat" | "deepseek-reasoner";
+  policyYaml?: string;
   systemPrompt: string;
   apiKey?: string;
 }

@@ -9,6 +9,96 @@ export const agentStatuses = [
 
 export const agentModels = ["deepseek-chat", "deepseek-reasoner"] as const;
 
+export const sandboxPolicies = [
+  {
+    id: "restricted",
+    name: "Restricted",
+    description:
+      "Default-deny egress with OpenShell's baseline filesystem and process isolation.",
+    enforcement: "ENFORCE",
+    networkAccess: "Managed inference only",
+    policyYaml: `version: 1
+network_policies: {}
+`,
+  },
+  {
+    id: "github-readonly",
+    name: "GitHub Read-only",
+    description:
+      "Allows gh and curl to read the GitHub API while write methods remain denied.",
+    enforcement: "ENFORCE",
+    networkAccess: "api.github.com · GET, HEAD, OPTIONS",
+    policyYaml: `version: 1
+network_policies:
+  github_api:
+    name: github-api
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: read-only
+    binaries:
+      - path: /usr/bin/gh
+      - path: /usr/bin/curl
+`,
+  },
+  {
+    id: "github-full-access",
+    name: "GitHub Full Access",
+    description:
+      "Example policy that allows any HTTP method and path on the declared GitHub API endpoint.",
+    enforcement: "ENFORCE",
+    networkAccess: "api.github.com · all methods and paths",
+    policyYaml: `version: 1
+network_policies:
+  github_api_full_access:
+    name: github-api-full-access
+    endpoints:
+      - host: api.github.com
+        port: 443
+        protocol: rest
+        enforcement: enforce
+        access: full
+    binaries:
+      - path: /usr/bin/gh
+      - path: /usr/bin/curl
+`,
+  },
+  {
+    id: "package-install",
+    name: "Package Install",
+    description:
+      "Allows package managers to reach the npm and Python package registries.",
+    enforcement: "ENFORCE",
+    networkAccess: "npmjs.org · pypi.org · pythonhosted.org",
+    policyYaml: `version: 1
+network_policies:
+  package_registries:
+    name: package-registries
+    endpoints:
+      - host: registry.npmjs.org
+        port: 443
+      - host: pypi.org
+        port: 443
+      - host: files.pythonhosted.org
+        port: 443
+    binaries:
+      - path: /usr/bin/npm
+      - path: /usr/bin/pip
+      - path: /usr/local/bin/pip
+      - path: /usr/local/bin/uv
+`,
+  },
+] as const;
+
+export const sandboxPolicyIds = sandboxPolicies.map((policy) => policy.id) as [
+  "restricted",
+  "github-readonly",
+  "github-full-access",
+  "package-install",
+];
+
 export const providerConnectionStatuses = ["VALIDATED", "FAILED"] as const;
 
 export const createProviderConnectionSchema = z.object({
@@ -16,6 +106,8 @@ export const createProviderConnectionSchema = z.object({
   provider: z.literal("deepseek"),
   endpoint: z.string().trim().url(),
   model: z.enum(agentModels),
+  inputFeePerMillionTokens: z.number().min(0).max(1_000_000).default(0),
+  outputFeePerMillionTokens: z.number().min(0).max(1_000_000).default(0),
   apiKey: z.string().trim().min(8).max(512),
 });
 
@@ -26,11 +118,14 @@ export const createAgentSchema = z.object({
   providerConnectionId: z.string().trim().min(1),
   provider: z.literal("deepseek"),
   model: z.enum(agentModels),
+  policyId: z.enum(sandboxPolicyIds).default("restricted"),
   systemPrompt: z.string().trim().min(10).max(8000),
 });
 
 export type AgentStatus = (typeof agentStatuses)[number];
 export type AgentModel = (typeof agentModels)[number];
+export type SandboxPolicyId = (typeof sandboxPolicyIds)[number];
+export type SandboxPolicy = (typeof sandboxPolicies)[number];
 export type ProviderConnectionStatus =
   (typeof providerConnectionStatuses)[number];
 export type CreateProviderConnectionInput = z.infer<
@@ -89,6 +184,24 @@ export interface RunnerSandbox {
   logs: string[];
   httpEndpoint?: HttpEndpoint;
   error?: string;
+}
+
+export interface SandboxAuditEvent {
+  id: string;
+  timestamp: string;
+  source: "gateway" | "sandbox" | "unknown";
+  category: string;
+  severity: "INFO" | "LOW" | "MED" | "HIGH" | "CRIT" | "UNKNOWN";
+  decision:
+    | "ALLOWED"
+    | "DENIED"
+    | "BLOCKED"
+    | "APPROVED"
+    | "REJECTED"
+    | "OBSERVED";
+  summary: string;
+  policy?: string;
+  raw: string;
 }
 
 export interface RunnerHealth {

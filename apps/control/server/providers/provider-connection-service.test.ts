@@ -8,6 +8,8 @@ const input = {
   provider: "deepseek" as const,
   endpoint: "https://api.deepseek.com",
   model: "deepseek-chat" as const,
+  inputFeePerMillionTokens: 0.28,
+  outputFeePerMillionTokens: 0.42,
   apiKey: "test-api-key",
 };
 

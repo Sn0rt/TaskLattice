@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { createAgentSchema, sandboxPolicies } from "@tasklattice/contracts";
 import { agentSandboxName } from "./agent-service";
 
 describe("Agent sandbox naming", () => {
@@ -17,5 +18,28 @@ describe("Agent sandbox naming", () => {
     expect(
       agentSandboxName("研究助手", "abcdef01-1234-4000-8000-123456789abc"),
     ).toBe("tali-agent-abcdef01");
+  });
+});
+
+describe("OpenShell policy assignment", () => {
+  it("offers a full-access GitHub example that can be assigned to an Agent", () => {
+    const policy = sandboxPolicies.find(
+      (item) => item.id === "github-full-access",
+    );
+
+    expect(policy?.policyYaml).toContain("host: api.github.com");
+    expect(policy?.policyYaml).toContain("access: full");
+    expect(
+      createAgentSchema.parse({
+        name: "GitHub Operator",
+        description: "",
+        runtime: "nemoclaw",
+        providerConnectionId: "provider-a",
+        provider: "deepseek",
+        model: "deepseek-chat",
+        policyId: "github-full-access",
+        systemPrompt: "Operate on GitHub and report the resulting evidence.",
+      }).policyId,
+    ).toBe("github-full-access");
   });
 });

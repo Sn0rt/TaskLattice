@@ -36,6 +36,10 @@ export const quotaPreviews: QuotaPreview[] = [
 
 export type SkillPreview = {
   bindings: number;
+  category: "Data" | "Developer Tools" | "Research";
+  description: string;
+  digest: string;
+  endpoint: string;
   id: string;
   name: string;
   owner: string;
@@ -47,6 +51,10 @@ export type SkillPreview = {
 export const skillPreviews: SkillPreview[] = [
   {
     bindings: 6,
+    category: "Data",
+    description: "Run governed read-only queries and return structured results.",
+    digest: "sha256:9a76…12f4",
+    endpoint: "https://skills.internal.example/sql-query.tar.zst",
     id: "skill-sql-query",
     name: "SQL Query",
     owner: "Data Platform",
@@ -56,6 +64,10 @@ export const skillPreviews: SkillPreview[] = [
   },
   {
     bindings: 2,
+    category: "Developer Tools",
+    description: "Generate and revise code inside an approved workspace boundary.",
+    digest: "Pending source check",
+    endpoint: "https://skills.internal.example/code-generation.tar.zst",
     id: "skill-code-generation",
     name: "Code Generation",
     owner: "Developer Experience",
@@ -65,12 +77,84 @@ export const skillPreviews: SkillPreview[] = [
   },
   {
     bindings: 11,
+    category: "Research",
+    description: "Collect public sources and produce citation-backed research notes.",
+    digest: "sha256:4bd3…88a1",
+    endpoint: "https://skills.internal.example/web-research.tar.zst",
     id: "skill-web-research",
     name: "Web Research",
     owner: "Knowledge Team",
     permissions: 3,
     status: "PUBLISHED",
     version: "2.1.0",
+  },
+];
+
+export type McpServerPreview = {
+  authReference: string;
+  endpoint: string;
+  id: string;
+  name: string;
+  parameters: string;
+  status: "HEALTHY" | "UNCHECKED";
+  tools: number;
+  transport: "Streamable HTTP" | "SSE";
+};
+
+export const mcpServerPreviews: McpServerPreview[] = [
+  {
+    authReference: "vault://platform/github-readonly",
+    endpoint: "https://mcp.internal.example/github",
+    id: "mcp-github-tools",
+    name: "GitHub Tools",
+    parameters: '{\n  "toolsets": ["repos", "issues", "pull_requests"]\n}',
+    status: "HEALTHY",
+    tools: 18,
+    transport: "Streamable HTTP",
+  },
+  {
+    authReference: "vault://data/warehouse-reader",
+    endpoint: "https://mcp.internal.example/warehouse/events",
+    id: "mcp-data-warehouse",
+    name: "Data Warehouse",
+    parameters: '{\n  "database": "analytics",\n  "readOnly": true\n}',
+    status: "UNCHECKED",
+    tools: 7,
+    transport: "SSE",
+  },
+];
+
+export type KnowledgeSourcePreview = {
+  authReference: string;
+  description: string;
+  endpoint: string;
+  id: string;
+  mode: "Hybrid" | "Vector" | "Keyword";
+  name: string;
+  status: "READY" | "UNCHECKED";
+  topK: number;
+};
+
+export const knowledgeSourcePreviews: KnowledgeSourcePreview[] = [
+  {
+    authReference: "vault://knowledge/product-docs",
+    description: "Published product specifications, runbooks, and release notes.",
+    endpoint: "https://knowledge.internal.example/v1/search",
+    id: "kb-product-docs",
+    mode: "Hybrid",
+    name: "Product Documentation",
+    status: "READY",
+    topK: 8,
+  },
+  {
+    authReference: "vault://knowledge/incidents",
+    description: "Resolved incident timelines and operational learning notes.",
+    endpoint: "https://knowledge.internal.example/incidents/query",
+    id: "kb-incident-history",
+    mode: "Vector",
+    name: "Incident History",
+    status: "UNCHECKED",
+    topK: 5,
   },
 ];
 
@@ -123,34 +207,3 @@ export const historyTicketPreviews: TicketPreview[] = [
     target: "embedding-v3",
   },
 ];
-
-export const auditPreviews = [
-  {
-    action: "Quota edited",
-    actor: "Priya Shah",
-    resource: "deepseek-chat",
-    result: "SUCCESS",
-    time: "10:24",
-  },
-  {
-    action: "Instance updated",
-    actor: "Michael Chen",
-    resource: "Research Assistant",
-    result: "SUCCESS",
-    time: "09:15",
-  },
-  {
-    action: "Skill bound",
-    actor: "James Lee",
-    resource: "SQL Query",
-    result: "SUCCESS",
-    time: "Yesterday",
-  },
-  {
-    action: "Request rejected",
-    actor: "Anita Desai",
-    resource: "REQ-2026-0661",
-    result: "FAILED",
-    time: "Yesterday",
-  },
-] as const;

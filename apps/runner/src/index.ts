@@ -20,6 +20,7 @@ import {
   deleteOpenShellSandbox,
   deleteOpenShellWebUiEndpoint,
   ensureOpenShellWebUiEndpoint,
+  getOpenShellAuditEvents,
   observeOpenShellSandbox,
   openShellArguments,
   openShellBinary,
@@ -45,6 +46,7 @@ const createSchema = z.object({
   provider: z.literal("deepseek"),
   model: z.enum(["deepseek-chat", "deepseek-reasoner"]),
   systemPrompt: z.string().min(10).max(8000),
+  policyYaml: z.string().min(10).max(64_000),
   apiKey: z.string().min(16).max(512).optional(),
 });
 
@@ -186,6 +188,7 @@ app.post("/v1/sandboxes", (request, response, next) => {
       provider: parsedInput.provider,
       model: parsedInput.model,
       systemPrompt: parsedInput.systemPrompt,
+      policyYaml: parsedInput.policyYaml,
       ...(parsedInput.apiKey ? { apiKey: parsedInput.apiKey } : {}),
     };
     if (states.has(input.name))
@@ -285,6 +288,16 @@ app.get("/v1/sandboxes/:name", async (request, response, next) => {
             ? "FAILED"
             : "PROVISIONING";
     response.json({ name, phase, logs: local?.logs ?? [] });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/v1/sandboxes/:name/audit", async (request, response, next) => {
+  try {
+    const name = z.string().parse(request.params.name);
+    if (!isOpenShell) return void response.json({ data: [] });
+    response.json({ data: await getOpenShellAuditEvents(name) });
   } catch (error) {
     next(error);
   }

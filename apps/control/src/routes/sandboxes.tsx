@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { Activity, Box, Eye, ScrollText, ShieldCheck } from "lucide-react";
+import { Box, Eye, RefreshCw, ScrollText, ShieldCheck } from "lucide-react";
+import { sandboxPolicies } from "@tasklattice/contracts";
 import { AgentStatusBadge } from "@/components/agents/agent-status-badge";
 import { PageHeader } from "@/components/layout/page-header";
 import { EmptyState } from "@/components/shared/empty-state";
@@ -21,7 +22,7 @@ export const Route = createFileRoute("/sandboxes")({ component: Sandboxes });
 
 function Sandboxes() {
   const [selectedId, setSelectedId] = useState<string>();
-  const [tab, setTab] = useState<"overview" | "activity">("activity");
+  const [tab, setTab] = useState<"overview" | "audit">("audit");
   const agents = useQuery({
     queryKey: ["agents"],
     queryFn: api.listAgents,
@@ -40,6 +41,13 @@ function Sandboxes() {
   const sandboxes = useMemo(() => agents.data ?? [], [agents.data]);
   const selected =
     sandboxes.find((agent) => agent.id === selectedId) ?? sandboxes[0];
+  const audit = useQuery({
+    queryKey: ["sandbox-audit", selected?.id],
+    queryFn: () => api.getAgentAudit(selected!.id),
+    enabled: Boolean(selected?.id && selected.status === "READY"),
+    retry: 1,
+    refetchInterval: 5_000,
+  });
 
   useEffect(() => {
     if (selected && selected.id !== selectedId) setSelectedId(selected.id);
@@ -133,7 +141,7 @@ function Sandboxes() {
                 {selected.status === "READY" ? "current" : "unavailable"}
               </CardDescription>
               <div className="mt-3 flex border-b">
-                {(["overview", "activity"] as const).map((value) => (
+                {(["overview", "audit"] as const).map((value) => (
                   <button
                     key={value}
                     type="button"
@@ -158,7 +166,7 @@ function Sandboxes() {
                     ["Instance", selected.id.slice(0, 8)],
                     ["Pod", selected.status === "READY" ? "1 / 1" : "0 / 1"],
                     ["Workspace", "Persistent PVC"],
-                    ["Policy", "tasklattice-managed"],
+                    ["Policy", sandboxPolicies.find((policy) => policy.id === (selected.policyId ?? "restricted"))?.name ?? selected.policyId ?? "Restricted"],
                   ].map(([label, value]) => (
                     <div
                       key={label}
@@ -173,32 +181,28 @@ function Sandboxes() {
                 </dl>
               ) : (
                 <div className="space-y-1">
-                  {(selected.logs.length
-                    ? selected.logs.slice(-6)
-                    : ["No structured runtime events have been recorded yet."]
-                  ).map((line, index) => (
-                    <div
-                      key={`${index}-${line}`}
-                      className="grid grid-cols-[auto_1fr] gap-3 border-b py-3 text-xs last:border-b-0"
-                    >
-                      {index % 2 === 0 ? (
-                        <Activity className="mt-0.5 size-3.5 text-muted-foreground" />
-                      ) : (
-                        <ShieldCheck className="mt-0.5 size-3.5 text-muted-foreground" />
-                      )}
-                      <div>
-                        <strong className="font-medium">
-                          {index === 0 ? "Runtime event" : "Sandbox evidence"}
-                        </strong>
-                        <p className="mt-1 break-words leading-5 text-muted-foreground">
-                          {line}
-                        </p>
+                  <div className="flex min-h-10 items-center justify-between gap-3 border-b text-xs">
+                    <span className="text-muted-foreground">OpenShell OCSF · last 24 hours</span>
+                    <button type="button" onClick={() => void audit.refetch()} disabled={audit.isFetching} className="grid size-10 place-items-center text-muted-foreground hover:text-foreground disabled:opacity-50" aria-label="Refresh OpenShell audit log"><RefreshCw className={cn("size-3.5", audit.isFetching && "animate-spin")} /></button>
+                  </div>
+                  {audit.isPending && selected.status === "READY" ? <p className="py-6 text-center text-xs text-muted-foreground">Reading OpenShell audit events…</p> : null}
+                  {audit.error ? <p role="alert" className="border-l-2 border-destructive bg-destructive/5 px-3 py-3 text-xs text-destructive">{audit.error.message}</p> : null}
+                  {audit.data?.map((event) => (
+                    <div key={event.id} className="grid grid-cols-[auto_1fr] gap-3 border-b py-3 text-xs last:border-b-0">
+                      <ShieldCheck className={cn("mt-0.5 size-3.5", (event.decision === "DENIED" || event.decision === "BLOCKED" || event.decision === "REJECTED") ? "text-destructive" : "text-muted-foreground")} />
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                          <strong className="font-medium">{event.category} · {event.decision}</strong>
+                          <time className="text-[10px] text-muted-foreground">{new Date(event.timestamp).toLocaleTimeString()}</time>
+                        </div>
+                        <p className="mt-1 break-words font-mono text-[10px] leading-5 text-muted-foreground">{event.summary}</p>
+                        {event.policy ? <span className="mt-1 inline-block text-[10px] text-muted-foreground">Policy: {event.policy}</span> : null}
                       </div>
                     </div>
                   ))}
+                  {!audit.isPending && !audit.error && !audit.data?.length ? <p className="py-6 text-center text-xs leading-5 text-muted-foreground">No OpenShell OCSF policy decisions are available for this sandbox yet.</p> : null}
                   <p className="pt-2 text-xs leading-5 text-muted-foreground">
-                    Terminal keystrokes, full prompts, and file contents are not
-                    captured by default.
+                    OpenShell records network, process, filesystem, and configuration decisions. Terminal keystrokes, prompts, and file contents are not captured.
                   </p>
                 </div>
               )}
@@ -207,7 +211,7 @@ function Sandboxes() {
                   to="/agents/$agentId"
                   params={{ agentId: selected.id }}
                 >
-                  {tab === "activity" ? <ScrollText /> : <Eye />}
+                  {tab === "audit" ? <ScrollText /> : <Eye />}
                   Open Agent detail
                 </Link>
               </Button>

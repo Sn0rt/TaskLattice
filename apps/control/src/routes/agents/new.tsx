@@ -1,47 +1,42 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { Bot, Cpu, LockKeyhole, Network, Sparkles } from "lucide-react";
+import { sandboxPolicies } from "@tasklattice/contracts";
+import { ArrowLeft, ArrowRight, Bot, Check, Cpu, LockKeyhole, Network, ServerCog, Sparkles, type LucideIcon } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
-import { UnavailableAction } from "@/components/shared/unavailable-action";
 import { api } from "@/lib/api";
+import { mcpServerPreviews, skillPreviews } from "@/lib/preview-data";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Separator } from "@/components/ui/separator";
 import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils";
 
 export const Route = createFileRoute("/agents/new")({ component: CreateAgent });
+
+const steps = [
+  ["Identity", "Name and instruct the Agent"],
+  ["Runtime", "Choose a validated model"],
+  ["Extensions", "Attach Skills and MCP"],
+  ["Review", "Confirm and create"],
+] as const;
+
 function CreateAgent() {
   const navigate = useNavigate();
+  const [step, setStep] = useState(0);
   const [providerConnectionId, setProviderConnectionId] = useState("");
-  const connections = useQuery({
-    queryKey: ["provider-connections"],
-    queryFn: api.listProviderConnections,
-  });
-  const validatedConnections = (connections.data ?? []).filter(
-    (connection) => connection.status === "VALIDATED",
-  );
+  const [selectedSkills, setSelectedSkills] = useState<string[]>([]);
+  const [selectedMcps, setSelectedMcps] = useState<string[]>([]);
+  const connections = useQuery({ queryKey: ["provider-connections"], queryFn: api.listProviderConnections });
+  const validatedConnections = (connections.data ?? []).filter((connection) => connection.status === "VALIDATED");
   const mutation = useMutation({
     mutationFn: api.createAgent,
-    onSuccess: (agent) =>
-      void navigate({ to: "/agents/$agentId", params: { agentId: agent.id } }),
+    onSuccess: (agent) => void navigate({ to: "/agents/$agentId", params: { agentId: agent.id } }),
   });
   const form = useForm({
     defaultValues: {
@@ -51,14 +46,13 @@ function CreateAgent() {
       providerConnectionId: "",
       provider: "deepseek" as const,
       model: "deepseek-chat" as "deepseek-chat" | "deepseek-reasoner",
-      systemPrompt:
-        "You are a focused internal assistant. Complete the user's request inside the NemoClaw sandbox and explain the evidence clearly.",
+      policyId: "restricted" as const,
+      systemPrompt: "You are a focused internal assistant. Complete the user's request inside the NemoClaw sandbox and explain the evidence clearly.",
     },
     onSubmit: ({ value }) => mutation.mutateAsync(value),
   });
-  const selectedConnection = validatedConnections.find(
-    (connection) => connection.id === providerConnectionId,
-  );
+  const selectedConnection = validatedConnections.find((connection) => connection.id === providerConnectionId);
+  const publishedSkills = skillPreviews.filter((item) => item.status === "PUBLISHED");
 
   useEffect(() => {
     const first = validatedConnections[0];
@@ -68,280 +62,148 @@ function CreateAgent() {
     form.setFieldValue("provider", first.provider);
     form.setFieldValue("model", first.model);
   }, [form, providerConnectionId, validatedConnections]);
+
+  const toggle = (id: string, values: string[], update: (next: string[]) => void) =>
+    update(values.includes(id) ? values.filter((item) => item !== id) : [...values, id]);
+
   return (
     <div className="space-y-7">
-      <PageHeader
-        eyebrow="Agent / Instance / Create"
-        title="Create Instance"
-        badge={<Badge variant="outline">UAT</Badge>}
-        description="Define an Agent and provision its NemoClaw runtime Instance. Runtime creation continues asynchronously after submission."
-      />
+      <PageHeader eyebrow="Agent / Instance / Create" title="Create Instance" badge={<Badge variant="outline">UAT</Badge>} description="Build a specialized Agent from a runtime, reusable Skills, and connected MCP tools." />
       <div className="grid gap-6 xl:grid-cols-[220px_minmax(0,1fr)_320px]">
-        <aside className="space-y-1">
-          <div className="flex items-center gap-3 rounded-lg bg-primary px-3 py-3 text-sm text-primary-foreground">
-            <span className="grid size-6 place-items-center rounded-full bg-primary-foreground/15 text-xs">
-              1
-            </span>
-            Agent configuration
-          </div>
-          <div className="flex items-center gap-3 px-3 py-3 text-sm text-muted-foreground">
-            <span className="grid size-6 place-items-center rounded-full border text-xs">
-              2
-            </span>
-            Runtime & model
-          </div>
-          <div className="flex items-center gap-3 px-3 py-3 text-sm text-muted-foreground">
-            <span className="grid size-6 place-items-center rounded-full border text-xs">
-              3
-            </span>
-            Create & observe
-          </div>
+        <aside className="space-y-1" aria-label="Create Instance progress">
+          {steps.map(([label, description], index) => (
+            <button key={label} type="button" disabled={index > step} onClick={() => setStep(index)} className={cn("flex min-h-16 w-full items-start gap-3 px-3 py-3 text-left text-sm transition-colors focus-visible:outline-2", index === step ? "bg-primary text-primary-foreground" : index < step ? "text-foreground hover:bg-muted" : "cursor-not-allowed text-muted-foreground/55")}>
+              <span className={cn("grid size-6 shrink-0 place-items-center rounded-full border text-xs", index < step && "border-primary bg-primary text-primary-foreground", index === step && "border-primary-foreground/40 bg-primary-foreground/15")}>{index < step ? <Check className="size-3" /> : index + 1}</span>
+              <span><strong className="block font-medium">{label}</strong><span className={cn("mt-1 block text-xs", index === step ? "text-primary-foreground/75" : "text-muted-foreground")}>{description}</span></span>
+            </button>
+          ))}
           <Separator className="my-4" />
-          <div className="rounded-lg bg-muted/50 p-3 text-xs leading-5 text-muted-foreground">
-            <LockKeyhole className="mb-2 size-4" />
-            Credentials remain attached to the selected validated Provider.
-            This form receives only its public identifier.
-          </div>
+          <div className="border bg-muted/40 p-3 text-xs leading-5 text-muted-foreground"><LockKeyhole className="mb-2 size-4" />Credentials stay attached to validated Providers and managed extension references.</div>
         </aside>
-        <form
-          onSubmit={(event) => {
-            event.preventDefault();
-            void form.handleSubmit();
-          }}
-          className="space-y-5"
-        >
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Bot className="size-5" />
-                Identity
-              </CardTitle>
-              <CardDescription>
-                Name the desired Agent resource. TaskLattice derives a safe sandbox
-                name.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <form.Field
-                name="name"
-                validators={{
-                  onChange: ({ value }) =>
-                    value.trim().length < 3
-                      ? "Use at least 3 characters."
-                      : undefined,
-                }}
-              >
-                {(field) => (
-                  <div className="space-y-2">
-                    <Label htmlFor={field.name}>Agent name</Label>
-                    <Input
-                      id={field.name}
-                      value={field.state.value}
-                      onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      placeholder="research-assistant"
-                    />
-                    <p className="text-xs text-destructive">
-                      {field.state.meta.errors.join(" ")}
-                    </p>
-                  </div>
-                )}
-              </form.Field>
-              <form.Field name="description">
-                {(field) => (
-                  <div className="space-y-2">
-                    <Label htmlFor={field.name}>
-                      Description{" "}
-                      <span className="text-muted-foreground">(optional)</span>
-                    </Label>
-                    <Input
-                      id={field.name}
-                      value={field.state.value}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                      placeholder="Summarizes internal research with citations"
-                    />
-                  </div>
-                )}
-              </form.Field>
-              <form.Field name="systemPrompt">
-                {(field) => (
-                  <div className="space-y-2">
-                    <Label htmlFor={field.name}>System instructions</Label>
-                    <Textarea
-                      id={field.name}
-                      className="min-h-32"
-                      value={field.state.value}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
-                    />
-                    <div className="text-right text-xs text-muted-foreground">
-                      {field.state.value.length} / 8000
-                    </div>
-                  </div>
-                )}
-              </form.Field>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2">
-                <Cpu className="size-5" />
-                Runtime & model
-              </CardTitle>
-              <CardDescription>
-                The core flow deliberately exposes only validated choices.
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-5">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="space-y-2">
-                  <Label>Agent runtime</Label>
-                  <Select value="nemoclaw">
-                    <SelectTrigger>
-                      <span className="flex items-center gap-2">
-                        <img src="/assets/brands/nvidia-logo-square.png" alt="" className="size-5 object-contain" />
-                        NemoClaw
-                      </span>
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="nemoclaw">
-                        <span className="flex items-center gap-2">
-                          <img src="/assets/brands/nvidia-logo-square.png" alt="" className="size-5 object-contain" />
-                          <span><strong className="block text-xs">NemoClaw</strong><span className="text-[11px] text-muted-foreground">OpenClaw in OpenShell</span></span>
-                        </span>
-                      </SelectItem>
-                      <SelectItem value="hermes" disabled>
-                        <span className="flex items-center gap-2 opacity-55">
-                          <img src="/assets/brands/hermes-agent-logo.png" alt="" className="size-5 rounded-sm object-contain grayscale" />
-                          <span><strong className="block text-xs">Hermes Agent</strong><span className="text-[11px] text-muted-foreground">Coming later</span></span>
-                        </span>
-                      </SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-2">
-                  <Label>Provider connection</Label>
-                  <Select
-                    value={providerConnectionId}
-                    disabled={!validatedConnections.length}
-                    onValueChange={(value) => {
-                      const connection = validatedConnections.find(
-                        (item) => item.id === value,
-                      );
-                      if (!connection) return;
-                      setProviderConnectionId(value);
-                      form.setFieldValue("providerConnectionId", value);
-                      form.setFieldValue("provider", connection.provider);
-                      form.setFieldValue("model", connection.model);
-                    }}
-                  >
-                    <SelectTrigger>
-                      <SelectValue placeholder="Select a validated Provider" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {validatedConnections.map((connection) => (
-                        <SelectItem key={connection.id} value={connection.id}>
-                          {connection.name} · {connection.endpoint} · {connection.model}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-              {selectedConnection ? (
-                <div className="grid gap-3 border-y py-3 text-xs sm:grid-cols-3">
-                  <div><span className="text-muted-foreground">Endpoint</span><strong className="mt-1 block truncate font-mono">{selectedConnection.endpoint}</strong></div>
-                  <div><span className="text-muted-foreground">Model</span><strong className="mt-1 block">{selectedConnection.model}</strong></div>
-                  <div><span className="text-muted-foreground">Credential</span><strong className="mt-1 block">Stored by platform</strong></div>
-                </div>
-              ) : (
-                <p role="alert" className="border-l-2 border-amber-500 bg-amber-500/5 px-3 py-2 text-xs">
-                  No validated Provider is available. <Link to="/providers" className="font-semibold underline underline-offset-4">Register and validate a connection first.</Link>
-                </p>
-              )}
-            </CardContent>
-          </Card>
-          {mutation.error ? (
-            <p className="rounded-lg border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">
-              {mutation.error.message}
-            </p>
+
+        <form onSubmit={(event) => { event.preventDefault(); void form.handleSubmit(); }} className="space-y-5">
+          {step === 0 ? (
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Bot className="size-5" /> Identity</CardTitle><CardDescription>Name the desired Agent resource and define its operating instructions.</CardDescription></CardHeader>
+              <CardContent className="space-y-5">
+                <form.Field name="name" validators={{ onChange: ({ value }) => value.trim().length < 3 ? "Use at least 3 characters." : undefined }}>
+                  {(field) => <div className="space-y-2"><Label htmlFor={field.name}>Agent name</Label><Input id={field.name} value={field.state.value} onBlur={field.handleBlur} onChange={(event) => field.handleChange(event.target.value)} placeholder="research-assistant" /><p className="min-h-4 text-xs text-destructive">{field.state.meta.errors.join(" ")}</p></div>}
+                </form.Field>
+                <form.Field name="description">{(field) => <div className="space-y-2"><Label htmlFor={field.name}>Description <span className="text-muted-foreground">(optional)</span></Label><Input id={field.name} value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} placeholder="Summarizes internal research with citations" /></div>}</form.Field>
+                <form.Field name="systemPrompt">{(field) => <div className="space-y-2"><Label htmlFor={field.name}>System instructions</Label><Textarea id={field.name} className="min-h-40" value={field.state.value} onChange={(event) => field.handleChange(event.target.value)} /><div className="text-right text-xs text-muted-foreground">{field.state.value.length} / 8000</div></div>}</form.Field>
+              </CardContent>
+            </Card>
           ) : null}
-          <div className="flex justify-end">
-            <form.Subscribe
-              selector={(state) => [
-                state.values.name,
-                state.values.systemPrompt,
-                state.values.providerConnectionId,
-                state.canSubmit,
-                state.isSubmitting,
-              ]}
-            >
-              {([name, systemPrompt, selectedProviderConnectionId, canSubmit, isSubmitting]) => (
-                <Button
-                  size="lg"
-                  type="submit"
-                  disabled={
-                    String(name).trim().length < 3 ||
-                    String(systemPrompt).trim().length < 10 ||
-                    !String(selectedProviderConnectionId) ||
-                    !canSubmit ||
-                    Boolean(isSubmitting) ||
-                    mutation.isPending
-                  }
-                >
-                  {mutation.isPending
-                    ? "Creating NemoClaw sandbox…"
-                    : "Create Instance"}
-                </Button>
+
+          {step === 1 ? (
+            <Card>
+              <CardHeader><CardTitle className="flex items-center gap-2"><Cpu className="size-5" /> Runtime & model</CardTitle><CardDescription>The core provisioning flow exposes only validated Provider choices.</CardDescription></CardHeader>
+              <CardContent className="space-y-5">
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <div className="space-y-2"><Label>Agent runtime</Label><Select value="nemoclaw"><SelectTrigger><span className="flex items-center gap-2"><img src="/assets/brands/nvidia-logo-square.png" alt="" className="size-5 object-contain" />NemoClaw</span></SelectTrigger><SelectContent><SelectItem value="nemoclaw">NemoClaw · OpenClaw in OpenShell</SelectItem><SelectItem value="hermes" disabled>Hermes Agent · Coming later</SelectItem></SelectContent></Select></div>
+                  <div className="space-y-2"><Label>Provider connection</Label><Select value={providerConnectionId} disabled={!validatedConnections.length} onValueChange={(value) => { const connection = validatedConnections.find((item) => item.id === value); if (!connection) return; setProviderConnectionId(value); form.setFieldValue("providerConnectionId", value); form.setFieldValue("provider", connection.provider); form.setFieldValue("model", connection.model); }}><SelectTrigger><SelectValue placeholder="Select a validated Provider" /></SelectTrigger><SelectContent>{validatedConnections.map((connection) => <SelectItem key={connection.id} value={connection.id}>{connection.name} · {connection.model}</SelectItem>)}</SelectContent></Select></div>
+                </div>
+                {selectedConnection ? <div className="grid gap-3 border-y py-4 text-xs sm:grid-cols-3"><div><span className="text-muted-foreground">Endpoint</span><strong className="mt-1 block truncate font-mono">{selectedConnection.endpoint}</strong></div><div><span className="text-muted-foreground">Model</span><strong className="mt-1 block">{selectedConnection.model}</strong></div><div><span className="text-muted-foreground">Credential</span><strong className="mt-1 block">Stored by platform</strong></div></div> : <p role="alert" className="border-l-2 border-amber-500 bg-amber-500/5 px-3 py-3 text-xs">No validated Provider is available. <Link to="/providers" className="font-semibold underline underline-offset-4">Register and validate a connection first.</Link></p>}
+                <form.Field name="policyId">
+                  {(field) => (
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between gap-3"><Label>OpenShell policy</Label><Link to="/policy" className="text-xs font-medium underline underline-offset-4">Inspect policies</Link></div>
+                      <Select value={field.state.value} onValueChange={(value) => field.handleChange(value as typeof field.state.value)}>
+                        <SelectTrigger aria-label="OpenShell policy" className="min-h-12 h-auto"><SelectValue /></SelectTrigger>
+                        <SelectContent>{sandboxPolicies.map((policy) => <SelectItem key={policy.id} value={policy.id}>{policy.name} · {policy.networkAccess}</SelectItem>)}</SelectContent>
+                      </Select>
+                      <p className="text-xs leading-5 text-muted-foreground">Applied at sandbox creation through the OpenShell policy file boundary.</p>
+                    </div>
+                  )}
+                </form.Field>
+              </CardContent>
+            </Card>
+          ) : null}
+
+          {step === 2 ? (
+            <div className="space-y-5">
+              <Card>
+                <CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><Sparkles className="size-5" /> Skills</CardTitle><CardDescription className="mt-2">Choose one or more verified capability packages.</CardDescription></div><Badge variant="outline">{selectedSkills.length} selected</Badge></div></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  {publishedSkills.map((skill) => { const active = selectedSkills.includes(skill.id); return <button key={skill.id} type="button" aria-pressed={active} onClick={() => toggle(skill.id, selectedSkills, setSelectedSkills)} className={cn("min-h-32 border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2", active && "border-primary bg-primary/5 shadow-[inset_3px_0_0_var(--primary)]")}><span className="flex items-start justify-between gap-3"><span><strong className="block">{skill.name}</strong><span className="mt-1 block text-[10px] uppercase tracking-wide text-muted-foreground">{skill.category} · v{skill.version}</span></span><span className={cn("grid size-6 place-items-center rounded-full border", active && "border-primary bg-primary text-primary-foreground")}>{active ? <Check className="size-3" /> : null}</span></span><span className="mt-3 block text-xs leading-5 text-muted-foreground">{skill.description}</span></button>; })}
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader><div className="flex items-center justify-between gap-3"><div><CardTitle className="flex items-center gap-2"><ServerCog className="size-5" /> MCP Servers</CardTitle><CardDescription className="mt-2">Choose one or more tool servers for this Agent.</CardDescription></div><Badge variant="outline">{selectedMcps.length} selected</Badge></div></CardHeader>
+                <CardContent className="grid gap-3 sm:grid-cols-2">
+                  {mcpServerPreviews.map((mcp) => { const active = selectedMcps.includes(mcp.id); return <button key={mcp.id} type="button" aria-pressed={active} onClick={() => toggle(mcp.id, selectedMcps, setSelectedMcps)} className={cn("min-h-28 border p-4 text-left transition-colors hover:bg-muted/50 focus-visible:outline-2", active && "border-primary bg-primary/5 shadow-[inset_3px_0_0_var(--primary)]")}><span className="flex items-start justify-between gap-3"><span><strong className="block">{mcp.name}</strong><span className="mt-1 block text-[10px] uppercase tracking-wide text-muted-foreground">{mcp.transport} · {mcp.tools} tools</span></span><span className={cn("grid size-6 place-items-center rounded-full border", active && "border-primary bg-primary text-primary-foreground")}>{active ? <Check className="size-3" /> : null}</span></span><span className="mt-3 block truncate font-mono text-xs text-muted-foreground">{mcp.endpoint}</span></button>; })}
+                </CardContent>
+              </Card>
+              <p className="border-l-2 border-primary bg-primary/5 px-4 py-3 text-xs leading-5"><strong>Preview behavior:</strong> selections appear in the review step but are not persisted or installed by the current backend.</p>
+            </div>
+          ) : null}
+
+          {step === 3 ? (
+            <form.Subscribe selector={(state) => state.values}>
+              {(values) => (
+                <Card>
+                  <CardHeader><CardTitle className="flex items-center gap-2"><Check className="size-5" /> Review & create</CardTitle><CardDescription>Confirm the runtime blueprint before provisioning the NemoClaw Instance.</CardDescription></CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <ReviewSection title="Agent"><ReviewRow label="Name" value={values.name} /><ReviewRow label="Description" value={values.description || "None"} /></ReviewSection>
+                      <ReviewSection title="Runtime"><ReviewRow label="Runtime" value="NemoClaw" /><ReviewRow label="Provider" value={selectedConnection?.name ?? "Not selected"} /><ReviewRow label="Model" value={selectedConnection?.model ?? "—"} /><ReviewRow label="Policy" value={sandboxPolicies.find((policy) => policy.id === values.policyId)?.name ?? values.policyId} /></ReviewSection>
+                    </div>
+                    <Separator />
+                    <div className="grid gap-5 sm:grid-cols-2">
+                      <ReviewSection title={`Skills (${selectedSkills.length})`}>{selectedSkills.length ? selectedSkills.map((id) => <ReviewPill key={id} label={skillPreviews.find((item) => item.id === id)?.name ?? id} />) : <p className="text-xs text-muted-foreground">No Skills selected</p>}</ReviewSection>
+                      <ReviewSection title={`MCP Servers (${selectedMcps.length})`}>{selectedMcps.length ? selectedMcps.map((id) => <ReviewPill key={id} label={mcpServerPreviews.find((item) => item.id === id)?.name ?? id} />) : <p className="text-xs text-muted-foreground">No MCP servers selected</p>}</ReviewSection>
+                    </div>
+                    <p className="border bg-muted/40 p-3 text-xs leading-5 text-muted-foreground">The Instance will be created through the existing backend. Extension attachment is visual-only in this iteration and will not be included in the request payload.</p>
+                  </CardContent>
+                </Card>
               )}
             </form.Subscribe>
+          ) : null}
+
+          {mutation.error ? <p className="border border-destructive/30 bg-destructive/5 p-3 text-sm text-destructive">{mutation.error.message}</p> : null}
+          <div className="flex items-center justify-between gap-3">
+            <Button type="button" variant="outline" disabled={step === 0 || mutation.isPending} onClick={() => setStep((current) => Math.max(0, current - 1))}><ArrowLeft /> Back</Button>
+            {step < 3 ? (
+              <form.Subscribe selector={(state) => [state.values.name, state.values.systemPrompt, state.values.providerConnectionId]}>
+                {([name, prompt, connection]) => <Button type="button" disabled={(step === 0 && (String(name).trim().length < 3 || String(prompt).trim().length < 10)) || (step === 1 && !String(connection))} onClick={() => setStep((current) => Math.min(3, current + 1))}>Continue <ArrowRight /></Button>}
+              </form.Subscribe>
+            ) : (
+              <form.Subscribe selector={(state) => [state.canSubmit, state.isSubmitting]}>{([canSubmit, isSubmitting]) => <Button size="lg" type="submit" disabled={!canSubmit || Boolean(isSubmitting) || mutation.isPending}>{mutation.isPending ? "Creating NemoClaw sandbox…" : "Create Instance"}</Button>}</form.Subscribe>
+            )}
           </div>
         </form>
+
         <aside>
           <Card className="sticky top-24">
-            <CardHeader>
-              <CardTitle className="text-base">What TaskLattice will do</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle className="text-base">Instance blueprint</CardTitle><CardDescription>Live summary of the specialized Agent you are assembling.</CardDescription></CardHeader>
             <CardContent className="space-y-4 text-sm">
-              <div className="flex gap-3">
-                <Network className="mt-0.5 size-4 shrink-0 text-primary" />
-                <div>
-                  <strong>Call the OpenShell control plane</strong>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Send a typed provisioning request, never a shell string.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <Sparkles className="mt-0.5 size-4 shrink-0 text-primary" />
-                <div>
-                  <strong>Bind the validated Provider</strong>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Resolve the selected Pi-validated Provider connection without exposing its credential.
-                  </p>
-                </div>
-              </div>
-              <div className="flex gap-3">
-                <LockKeyhole className="mt-0.5 size-4 shrink-0 text-primary" />
-                <div>
-                  <strong>Create the sandbox</strong>
-                  <p className="mt-1 text-xs leading-5 text-muted-foreground">
-                    Observe provisioning until NemoClaw reports Ready.
-                  </p>
-                </div>
-              </div>
+              <BlueprintRow icon={Cpu} label="Runtime" value="NemoClaw" />
+              <BlueprintRow icon={Network} label="Provider" value={selectedConnection?.name ?? "Required"} />
+              <form.Subscribe selector={(state) => state.values.policyId}>{(policyId) => <BlueprintRow icon={LockKeyhole} label="Policy" value={sandboxPolicies.find((policy) => policy.id === policyId)?.name ?? String(policyId)} />}</form.Subscribe>
+              <BlueprintRow icon={Sparkles} label="Skills" value={`${selectedSkills.length} selected`} />
+              <BlueprintRow icon={ServerCog} label="MCP Servers" value={`${selectedMcps.length} selected`} />
               <Separator />
-              <UnavailableAction label="Attach Skills" />
-              <UnavailableAction label="Hermes Agent runtime" />
+              <p className="text-xs leading-5 text-muted-foreground">Runtime provisioning remains asynchronous. Extension installation and binding are not implemented in this preview.</p>
             </CardContent>
           </Card>
         </aside>
       </div>
     </div>
   );
+}
+
+function BlueprintRow({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+  return <div className="flex items-center gap-3"><span className="grid size-9 place-items-center border bg-muted/40"><Icon className="size-4 text-primary" /></span><span className="min-w-0"><span className="block text-xs text-muted-foreground">{label}</span><strong className="block truncate text-sm">{value}</strong></span></div>;
+}
+
+function ReviewSection({ children, title }: { children: ReactNode; title: string }) {
+  return <section><h3 className="mb-3 text-sm font-semibold">{title}</h3><div className="space-y-2">{children}</div></section>;
+}
+
+function ReviewRow({ label, value }: { label: string; value: string }) {
+  return <div className="flex items-start justify-between gap-4 text-xs"><span className="text-muted-foreground">{label}</span><strong className="max-w-[70%] break-words text-right">{value}</strong></div>;
+}
+
+function ReviewPill({ label }: { label: string }) {
+  return <span className="mr-2 inline-flex min-h-8 items-center border bg-muted/40 px-3 text-xs font-medium">{label}</span>;
 }
