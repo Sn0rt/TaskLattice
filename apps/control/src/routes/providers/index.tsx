@@ -25,8 +25,6 @@ function ProvidersPage() {
   return (
     <div className="space-y-6">
       <PageHeader
-        eyebrow="Provider registry"
-        title="Providers"
         description="Register credentials once, validate the connection, then attach multiple categorized models to the same Provider Account."
         actions={<div className="flex gap-2"><Button asChild variant="outline" className="h-11"><Link to="/providers/cost"><BarChart3 />Cost</Link></Button><Button className="h-11" onClick={() => { setDrawerAccount(undefined); setRegisterOpen(true); }}><Plus />Register Provider</Button></div>}
       />

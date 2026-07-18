@@ -6,7 +6,7 @@ interface PageHeaderProps {
   badge?: ReactNode;
   description?: ReactNode;
   eyebrow?: string;
-  title: string;
+  title?: string;
 }
 
 export function PageHeader({
@@ -16,6 +16,7 @@ export function PageHeader({
   eyebrow,
   title,
 }: PageHeaderProps) {
+  const hasHeading = Boolean(eyebrow || title || badge);
   return (
     <header className="flex flex-wrap items-end justify-between gap-4 border-b pb-5">
       <div>
@@ -24,12 +25,14 @@ export function PageHeader({
             {eyebrow}
           </p>
         ) : null}
-        <div className={cn("flex flex-wrap items-center gap-3", eyebrow && "mt-2")}>
-          <h1 className="text-3xl font-semibold tracking-tight">{title}</h1>
-          {badge}
-        </div>
+        {title || badge ? (
+          <div className={cn("flex flex-wrap items-center gap-3", eyebrow && "mt-2")}>
+            {title ? <h1 className="text-3xl font-semibold tracking-tight">{title}</h1> : null}
+            {badge}
+          </div>
+        ) : null}
         {description ? (
-          <p className="mt-2 max-w-2xl text-sm text-muted-foreground">
+          <p className={cn("max-w-2xl text-sm text-muted-foreground", hasHeading && "mt-2")}>
             {description}
           </p>
         ) : null}
