@@ -10,6 +10,7 @@ import {
   CircleHelp,
   FileLock2,
   FileClock,
+  FlaskConical,
   Network,
   Search,
   ServerCog,
@@ -60,11 +61,13 @@ import {
   ToastTitle,
   ToastViewport,
 } from "@/components/ui/toast";
+import { EvaluationMockProvider } from "@/features/evaluations/mock-provider";
 
 type ProjectRoute =
   | "/$projectId/agent-garden"
   | "/$projectId/cost"
   | "/$projectId/traces"
+  | "/$projectId/evaluations"
   | "/$projectId/instances"
   | "/$projectId/requests/new"
   | "/$projectId/access-policies"
@@ -110,6 +113,11 @@ const navGroups: Array<{ items: NavItemDefinition[]; label: string }> = [
     label: "Observer",
     items: [
       { icon: Waypoints, label: "Traces", to: "/$projectId/traces" },
+      {
+        icon: FlaskConical,
+        label: "Evaluations",
+        to: "/$projectId/evaluations",
+      },
       { icon: CircleDollarSign, label: "Cost", to: "/$projectId/cost" },
     ],
   },
@@ -119,7 +127,8 @@ function itemIsActive(item: NavItemDefinition, pathname: string, projectId: stri
   const target = item.to.replace("$projectId", encodeURIComponent(projectId));
   if (
     item.to === "/$projectId/instances" ||
-    item.to === "/$projectId/access-policies"
+    item.to === "/$projectId/access-policies" ||
+    item.to === "/$projectId/evaluations"
   )
     return pathname === target || pathname.startsWith(`${target}/`);
   return pathname === target;
@@ -371,9 +380,12 @@ export function AppShell() {
                 </Button>
               </section>
             ) : (
-              <div key={currentProject.id}>
+              <EvaluationMockProvider
+                key={currentProject.id}
+                projectId={currentProject.id}
+              >
                 <Outlet />
-              </div>
+              </EvaluationMockProvider>
             )}
           </main>
         </SidebarInset>

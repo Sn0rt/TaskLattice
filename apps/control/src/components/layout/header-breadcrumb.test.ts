@@ -59,4 +59,19 @@ describe("getHeaderBreadcrumbItems", () => {
       },
     ]);
   });
+
+  it("labels Evaluation deep links", () => {
+    expect(
+      getHeaderBreadcrumbItems(
+        "/individual/evaluations/reports/report-1",
+      ),
+    ).toEqual([
+      { href: "/individual/evaluations", label: "Evaluations" },
+      { href: "/individual/evaluations/reports", label: "Reports" },
+      {
+        href: "/individual/evaluations/reports/report-1",
+        label: "Report detail",
+      },
+    ]);
+  });
 });

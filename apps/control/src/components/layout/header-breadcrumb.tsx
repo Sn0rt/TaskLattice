@@ -10,6 +10,8 @@ const routeLabels: Record<string, string> = {
   agents: "Instances",
   cost: "Cost",
   dashboard: "Overview",
+  datasets: "Datasets",
+  evaluations: "Evaluations",
   instances: "Instances",
   instace: "Instances",
   knowledge: "Knowledge Base",
@@ -20,6 +22,8 @@ const routeLabels: Record<string, string> = {
   profile: "My Account",
   "model-routings": "Routing",
   requests: "Requests",
+  reports: "Reports",
+  runs: "Evaluation",
   security: "Security",
   runtime: "Runtime",
   sandboxes: "Sandboxes",
@@ -28,6 +32,7 @@ const routeLabels: Record<string, string> = {
   skill: "Skills",
   skills: "Skills",
   tickets: "Ticket List",
+  targets: "Targets",
   traces: "Traces",
   projects: "Projects",
 };
@@ -50,8 +55,18 @@ export function getHeaderBreadcrumbItems(pathname: string): HeaderBreadcrumbItem
   const projectId = parts[0];
   return parts.slice(1).flatMap((part, routeIndex) => {
     const index = routeIndex + 1;
+    const evaluationDetailLabels: Record<string, string> = {
+      targets: "Target detail",
+      datasets: "Dataset detail",
+      runs: "Evaluation detail",
+      reports: "Report detail",
+    };
     const label =
-      routeIndex === 1 && parts[1] === "agent-garden"
+      routeIndex === 2 &&
+      parts[1] === "evaluations" &&
+      evaluationDetailLabels[parts[2] ?? ""]
+        ? evaluationDetailLabels[parts[2]!]!
+        : routeIndex === 1 && parts[1] === "agent-garden"
         ? "Agent details"
         :
       routeIndex === 1 && parts[1] === "access-policies"

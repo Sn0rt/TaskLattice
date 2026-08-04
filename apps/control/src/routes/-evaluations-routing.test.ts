@@ -1,0 +1,20 @@
+import { createMemoryHistory } from "@tanstack/react-router";
+import { describe, expect, it } from "vitest";
+import { getRouter } from "@/router";
+
+function matchRouteIds(pathname: string) {
+  const router = getRouter();
+  router.update({
+    context: router.options.context,
+    history: createMemoryHistory({ initialEntries: [pathname] }),
+  });
+  return router.matchRoutes(pathname).map((match) => match.routeId);
+}
+
+describe("Evaluations routes", () => {
+  it("matches Evaluations as a Project index route", () => {
+    expect(matchRouteIds("/individual/evaluations")).toContain(
+      "/$projectId/evaluations/",
+    );
+  });
+});
