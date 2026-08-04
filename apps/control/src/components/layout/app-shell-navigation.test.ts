@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { itemIsActive, projectNavGroups } from "./app-shell";
 
 describe("Evaluation navigation", () => {
-  it("adds the isolated group in AgentEval order without changing Observer", () => {
+  it("adds the isolated group in AgentEval order and keeps Observer minimal", () => {
     expect(
       projectNavGroups
         .find((group) => group.label === "Evaluation")
@@ -12,7 +12,7 @@ describe("Evaluation navigation", () => {
       projectNavGroups
         .find((group) => group.label === "Observer")
         ?.items.map((item) => item.label),
-    ).toEqual(["Traces", "Evaluations", "Cost"]);
+    ).toEqual(["Traces", "Cost"]);
   });
 
   it("keeps active state scoped to the selected Evaluation child", () => {

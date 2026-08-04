@@ -135,11 +135,6 @@ export const projectNavGroups: Array<{
     label: "Observer",
     items: [
       { icon: Waypoints, label: "Traces", to: "/$projectId/traces" },
-      {
-        icon: FlaskConical,
-        label: "Evaluations",
-        to: "/$projectId/evaluations",
-      },
       { icon: CircleDollarSign, label: "Cost", to: "/$projectId/cost" },
     ],
   },
