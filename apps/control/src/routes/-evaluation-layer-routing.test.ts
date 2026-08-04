@@ -24,4 +24,15 @@ describe("Evaluation layer routes", () => {
     expect(matches).toContain("/$projectId/evaluation");
     expect(matches).toContain(routeId);
   });
+
+  it.each([
+    ["/individual/evaluation/targets/demo", "/$projectId/evaluation/targets/$targetId"],
+    ["/individual/evaluation/datasets/demo", "/$projectId/evaluation/datasets/$datasetId"],
+    ["/individual/evaluation/runs/new", "/$projectId/evaluation/runs/new"],
+    ["/individual/evaluation/runs/demo", "/$projectId/evaluation/runs/$runId"],
+    ["/individual/evaluation/reports/demo", "/$projectId/evaluation/reports/$reportId"],
+    ["/individual/evaluation/traces/demo", "/$projectId/evaluation/traces/$traceId"],
+  ])("matches the detail flow %s", (pathname, routeId) => {
+    expect(matchRouteIds(pathname)).toContain(routeId);
+  });
 });

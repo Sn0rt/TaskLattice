@@ -39,9 +39,15 @@ import { Route as ProjectIdRequestsIndexRouteImport } from './routes/$projectId/
 import { Route as ProjectIdRequestsNewRouteImport } from './routes/$projectId/requests/new'
 import { Route as ProjectIdSettingIndexRouteImport } from './routes/$projectId/setting/index'
 import { Route as ProjectIdEvaluationDatasetsIndexRouteImport } from './routes/$projectId/evaluation/datasets/index'
+import { Route as ProjectIdEvaluationDatasetsDatasetIdRouteImport } from './routes/$projectId/evaluation/datasets/$datasetId'
+import { Route as ProjectIdEvaluationReportsReportIdRouteImport } from './routes/$projectId/evaluation/reports/$reportId'
 import { Route as ProjectIdEvaluationRunsIndexRouteImport } from './routes/$projectId/evaluation/runs/index'
+import { Route as ProjectIdEvaluationRunsRunIdRouteImport } from './routes/$projectId/evaluation/runs/$runId'
+import { Route as ProjectIdEvaluationRunsNewRouteImport } from './routes/$projectId/evaluation/runs/new'
 import { Route as ProjectIdEvaluationTargetsIndexRouteImport } from './routes/$projectId/evaluation/targets/index'
+import { Route as ProjectIdEvaluationTargetsTargetIdRouteImport } from './routes/$projectId/evaluation/targets/$targetId'
 import { Route as ProjectIdEvaluationTracesIndexRouteImport } from './routes/$projectId/evaluation/traces/index'
+import { Route as ProjectIdEvaluationTracesTraceIdRouteImport } from './routes/$projectId/evaluation/traces/$traceId'
 import { Route as ProjectIdEvaluationsDatasetsDatasetIdRouteImport } from './routes/$projectId/evaluations/datasets/$datasetId'
 import { Route as ProjectIdEvaluationsReportsReportIdRouteImport } from './routes/$projectId/evaluations/reports/$reportId'
 import { Route as ProjectIdEvaluationsRunsRunIdRouteImport } from './routes/$projectId/evaluations/runs/$runId'
@@ -209,10 +215,34 @@ const ProjectIdEvaluationDatasetsIndexRoute =
     path: '/datasets/',
     getParentRoute: () => ProjectIdEvaluationRoute,
   } as any)
+const ProjectIdEvaluationDatasetsDatasetIdRoute =
+  ProjectIdEvaluationDatasetsDatasetIdRouteImport.update({
+    id: '/datasets/$datasetId',
+    path: '/datasets/$datasetId',
+    getParentRoute: () => ProjectIdEvaluationRoute,
+  } as any)
+const ProjectIdEvaluationReportsReportIdRoute =
+  ProjectIdEvaluationReportsReportIdRouteImport.update({
+    id: '/reports/$reportId',
+    path: '/reports/$reportId',
+    getParentRoute: () => ProjectIdEvaluationRoute,
+  } as any)
 const ProjectIdEvaluationRunsIndexRoute =
   ProjectIdEvaluationRunsIndexRouteImport.update({
     id: '/runs/',
     path: '/runs/',
+    getParentRoute: () => ProjectIdEvaluationRoute,
+  } as any)
+const ProjectIdEvaluationRunsRunIdRoute =
+  ProjectIdEvaluationRunsRunIdRouteImport.update({
+    id: '/runs/$runId',
+    path: '/runs/$runId',
+    getParentRoute: () => ProjectIdEvaluationRoute,
+  } as any)
+const ProjectIdEvaluationRunsNewRoute =
+  ProjectIdEvaluationRunsNewRouteImport.update({
+    id: '/runs/new',
+    path: '/runs/new',
     getParentRoute: () => ProjectIdEvaluationRoute,
   } as any)
 const ProjectIdEvaluationTargetsIndexRoute =
@@ -221,10 +251,22 @@ const ProjectIdEvaluationTargetsIndexRoute =
     path: '/targets/',
     getParentRoute: () => ProjectIdEvaluationRoute,
   } as any)
+const ProjectIdEvaluationTargetsTargetIdRoute =
+  ProjectIdEvaluationTargetsTargetIdRouteImport.update({
+    id: '/targets/$targetId',
+    path: '/targets/$targetId',
+    getParentRoute: () => ProjectIdEvaluationRoute,
+  } as any)
 const ProjectIdEvaluationTracesIndexRoute =
   ProjectIdEvaluationTracesIndexRouteImport.update({
     id: '/traces/',
     path: '/traces/',
+    getParentRoute: () => ProjectIdEvaluationRoute,
+  } as any)
+const ProjectIdEvaluationTracesTraceIdRoute =
+  ProjectIdEvaluationTracesTraceIdRouteImport.update({
+    id: '/traces/$traceId',
+    path: '/traces/$traceId',
     getParentRoute: () => ProjectIdEvaluationRoute,
   } as any)
 const ProjectIdEvaluationsDatasetsDatasetIdRoute =
@@ -288,6 +330,12 @@ export interface FileRoutesByFullPath {
   '/$projectId/instances/': typeof ProjectIdInstancesIndexRoute
   '/$projectId/requests/': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting/': typeof ProjectIdSettingIndexRoute
+  '/$projectId/evaluation/datasets/$datasetId': typeof ProjectIdEvaluationDatasetsDatasetIdRoute
+  '/$projectId/evaluation/reports/$reportId': typeof ProjectIdEvaluationReportsReportIdRoute
+  '/$projectId/evaluation/runs/$runId': typeof ProjectIdEvaluationRunsRunIdRoute
+  '/$projectId/evaluation/runs/new': typeof ProjectIdEvaluationRunsNewRoute
+  '/$projectId/evaluation/targets/$targetId': typeof ProjectIdEvaluationTargetsTargetIdRoute
+  '/$projectId/evaluation/traces/$traceId': typeof ProjectIdEvaluationTracesTraceIdRoute
   '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   '/$projectId/evaluations/reports/$reportId': typeof ProjectIdEvaluationsReportsReportIdRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
@@ -327,6 +375,12 @@ export interface FileRoutesByTo {
   '/$projectId/instances': typeof ProjectIdInstancesIndexRoute
   '/$projectId/requests': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting': typeof ProjectIdSettingIndexRoute
+  '/$projectId/evaluation/datasets/$datasetId': typeof ProjectIdEvaluationDatasetsDatasetIdRoute
+  '/$projectId/evaluation/reports/$reportId': typeof ProjectIdEvaluationReportsReportIdRoute
+  '/$projectId/evaluation/runs/$runId': typeof ProjectIdEvaluationRunsRunIdRoute
+  '/$projectId/evaluation/runs/new': typeof ProjectIdEvaluationRunsNewRoute
+  '/$projectId/evaluation/targets/$targetId': typeof ProjectIdEvaluationTargetsTargetIdRoute
+  '/$projectId/evaluation/traces/$traceId': typeof ProjectIdEvaluationTracesTraceIdRoute
   '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   '/$projectId/evaluations/reports/$reportId': typeof ProjectIdEvaluationsReportsReportIdRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
@@ -368,6 +422,12 @@ export interface FileRoutesById {
   '/$projectId/instances/': typeof ProjectIdInstancesIndexRoute
   '/$projectId/requests/': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting/': typeof ProjectIdSettingIndexRoute
+  '/$projectId/evaluation/datasets/$datasetId': typeof ProjectIdEvaluationDatasetsDatasetIdRoute
+  '/$projectId/evaluation/reports/$reportId': typeof ProjectIdEvaluationReportsReportIdRoute
+  '/$projectId/evaluation/runs/$runId': typeof ProjectIdEvaluationRunsRunIdRoute
+  '/$projectId/evaluation/runs/new': typeof ProjectIdEvaluationRunsNewRoute
+  '/$projectId/evaluation/targets/$targetId': typeof ProjectIdEvaluationTargetsTargetIdRoute
+  '/$projectId/evaluation/traces/$traceId': typeof ProjectIdEvaluationTracesTraceIdRoute
   '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   '/$projectId/evaluations/reports/$reportId': typeof ProjectIdEvaluationsReportsReportIdRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
@@ -410,6 +470,12 @@ export interface FileRouteTypes {
     | '/$projectId/instances/'
     | '/$projectId/requests/'
     | '/$projectId/setting/'
+    | '/$projectId/evaluation/datasets/$datasetId'
+    | '/$projectId/evaluation/reports/$reportId'
+    | '/$projectId/evaluation/runs/$runId'
+    | '/$projectId/evaluation/runs/new'
+    | '/$projectId/evaluation/targets/$targetId'
+    | '/$projectId/evaluation/traces/$traceId'
     | '/$projectId/evaluations/datasets/$datasetId'
     | '/$projectId/evaluations/reports/$reportId'
     | '/$projectId/evaluations/runs/$runId'
@@ -449,6 +515,12 @@ export interface FileRouteTypes {
     | '/$projectId/instances'
     | '/$projectId/requests'
     | '/$projectId/setting'
+    | '/$projectId/evaluation/datasets/$datasetId'
+    | '/$projectId/evaluation/reports/$reportId'
+    | '/$projectId/evaluation/runs/$runId'
+    | '/$projectId/evaluation/runs/new'
+    | '/$projectId/evaluation/targets/$targetId'
+    | '/$projectId/evaluation/traces/$traceId'
     | '/$projectId/evaluations/datasets/$datasetId'
     | '/$projectId/evaluations/reports/$reportId'
     | '/$projectId/evaluations/runs/$runId'
@@ -489,6 +561,12 @@ export interface FileRouteTypes {
     | '/$projectId/instances/'
     | '/$projectId/requests/'
     | '/$projectId/setting/'
+    | '/$projectId/evaluation/datasets/$datasetId'
+    | '/$projectId/evaluation/reports/$reportId'
+    | '/$projectId/evaluation/runs/$runId'
+    | '/$projectId/evaluation/runs/new'
+    | '/$projectId/evaluation/targets/$targetId'
+    | '/$projectId/evaluation/traces/$traceId'
     | '/$projectId/evaluations/datasets/$datasetId'
     | '/$projectId/evaluations/reports/$reportId'
     | '/$projectId/evaluations/runs/$runId'
@@ -746,11 +824,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdEvaluationDatasetsIndexRouteImport
       parentRoute: typeof ProjectIdEvaluationRoute
     }
+    '/$projectId/evaluation/datasets/$datasetId': {
+      id: '/$projectId/evaluation/datasets/$datasetId'
+      path: '/datasets/$datasetId'
+      fullPath: '/$projectId/evaluation/datasets/$datasetId'
+      preLoaderRoute: typeof ProjectIdEvaluationDatasetsDatasetIdRouteImport
+      parentRoute: typeof ProjectIdEvaluationRoute
+    }
+    '/$projectId/evaluation/reports/$reportId': {
+      id: '/$projectId/evaluation/reports/$reportId'
+      path: '/reports/$reportId'
+      fullPath: '/$projectId/evaluation/reports/$reportId'
+      preLoaderRoute: typeof ProjectIdEvaluationReportsReportIdRouteImport
+      parentRoute: typeof ProjectIdEvaluationRoute
+    }
     '/$projectId/evaluation/runs/': {
       id: '/$projectId/evaluation/runs/'
       path: '/runs'
       fullPath: '/$projectId/evaluation/runs/'
       preLoaderRoute: typeof ProjectIdEvaluationRunsIndexRouteImport
+      parentRoute: typeof ProjectIdEvaluationRoute
+    }
+    '/$projectId/evaluation/runs/$runId': {
+      id: '/$projectId/evaluation/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/$projectId/evaluation/runs/$runId'
+      preLoaderRoute: typeof ProjectIdEvaluationRunsRunIdRouteImport
+      parentRoute: typeof ProjectIdEvaluationRoute
+    }
+    '/$projectId/evaluation/runs/new': {
+      id: '/$projectId/evaluation/runs/new'
+      path: '/runs/new'
+      fullPath: '/$projectId/evaluation/runs/new'
+      preLoaderRoute: typeof ProjectIdEvaluationRunsNewRouteImport
       parentRoute: typeof ProjectIdEvaluationRoute
     }
     '/$projectId/evaluation/targets/': {
@@ -760,11 +866,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdEvaluationTargetsIndexRouteImport
       parentRoute: typeof ProjectIdEvaluationRoute
     }
+    '/$projectId/evaluation/targets/$targetId': {
+      id: '/$projectId/evaluation/targets/$targetId'
+      path: '/targets/$targetId'
+      fullPath: '/$projectId/evaluation/targets/$targetId'
+      preLoaderRoute: typeof ProjectIdEvaluationTargetsTargetIdRouteImport
+      parentRoute: typeof ProjectIdEvaluationRoute
+    }
     '/$projectId/evaluation/traces/': {
       id: '/$projectId/evaluation/traces/'
       path: '/traces'
       fullPath: '/$projectId/evaluation/traces/'
       preLoaderRoute: typeof ProjectIdEvaluationTracesIndexRouteImport
+      parentRoute: typeof ProjectIdEvaluationRoute
+    }
+    '/$projectId/evaluation/traces/$traceId': {
+      id: '/$projectId/evaluation/traces/$traceId'
+      path: '/traces/$traceId'
+      fullPath: '/$projectId/evaluation/traces/$traceId'
+      preLoaderRoute: typeof ProjectIdEvaluationTracesTraceIdRouteImport
       parentRoute: typeof ProjectIdEvaluationRoute
     }
     '/$projectId/evaluations/datasets/$datasetId': {
@@ -809,6 +929,12 @@ interface ProjectIdEvaluationRouteChildren {
   ProjectIdEvaluationOverviewRoute: typeof ProjectIdEvaluationOverviewRoute
   ProjectIdEvaluationSettingsRoute: typeof ProjectIdEvaluationSettingsRoute
   ProjectIdEvaluationIndexRoute: typeof ProjectIdEvaluationIndexRoute
+  ProjectIdEvaluationDatasetsDatasetIdRoute: typeof ProjectIdEvaluationDatasetsDatasetIdRoute
+  ProjectIdEvaluationReportsReportIdRoute: typeof ProjectIdEvaluationReportsReportIdRoute
+  ProjectIdEvaluationRunsRunIdRoute: typeof ProjectIdEvaluationRunsRunIdRoute
+  ProjectIdEvaluationRunsNewRoute: typeof ProjectIdEvaluationRunsNewRoute
+  ProjectIdEvaluationTargetsTargetIdRoute: typeof ProjectIdEvaluationTargetsTargetIdRoute
+  ProjectIdEvaluationTracesTraceIdRoute: typeof ProjectIdEvaluationTracesTraceIdRoute
   ProjectIdEvaluationDatasetsIndexRoute: typeof ProjectIdEvaluationDatasetsIndexRoute
   ProjectIdEvaluationRunsIndexRoute: typeof ProjectIdEvaluationRunsIndexRoute
   ProjectIdEvaluationTargetsIndexRoute: typeof ProjectIdEvaluationTargetsIndexRoute
@@ -819,6 +945,15 @@ const ProjectIdEvaluationRouteChildren: ProjectIdEvaluationRouteChildren = {
   ProjectIdEvaluationOverviewRoute: ProjectIdEvaluationOverviewRoute,
   ProjectIdEvaluationSettingsRoute: ProjectIdEvaluationSettingsRoute,
   ProjectIdEvaluationIndexRoute: ProjectIdEvaluationIndexRoute,
+  ProjectIdEvaluationDatasetsDatasetIdRoute:
+    ProjectIdEvaluationDatasetsDatasetIdRoute,
+  ProjectIdEvaluationReportsReportIdRoute:
+    ProjectIdEvaluationReportsReportIdRoute,
+  ProjectIdEvaluationRunsRunIdRoute: ProjectIdEvaluationRunsRunIdRoute,
+  ProjectIdEvaluationRunsNewRoute: ProjectIdEvaluationRunsNewRoute,
+  ProjectIdEvaluationTargetsTargetIdRoute:
+    ProjectIdEvaluationTargetsTargetIdRoute,
+  ProjectIdEvaluationTracesTraceIdRoute: ProjectIdEvaluationTracesTraceIdRoute,
   ProjectIdEvaluationDatasetsIndexRoute: ProjectIdEvaluationDatasetsIndexRoute,
   ProjectIdEvaluationRunsIndexRoute: ProjectIdEvaluationRunsIndexRoute,
   ProjectIdEvaluationTargetsIndexRoute: ProjectIdEvaluationTargetsIndexRoute,

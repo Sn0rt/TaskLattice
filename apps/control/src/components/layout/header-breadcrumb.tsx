@@ -85,12 +85,22 @@ export function getHeaderBreadcrumbItems(pathname: string): HeaderBreadcrumbItem
         ? "Dataset detail"
         : routeIndex === 2 &&
           parts[1] === "evaluation" &&
-          parts[2] === "runs"
+          parts[2] === "runs" &&
+          part !== "new"
         ? "Evaluation detail"
         : routeIndex === 2 &&
           parts[1] === "evaluation" &&
           parts[2] === "traces"
         ? "Trace analysis"
+        : routeIndex === 2 &&
+          parts[1] === "evaluation" &&
+          parts[2] === "reports"
+        ? "Report detail"
+        : routeIndex === 2 &&
+          parts[1] === "evaluation" &&
+          parts[2] === "runs" &&
+          part === "new"
+        ? "New Evaluation"
         :
       routeIndex === 2 &&
       parts[1] === "evaluations" &&
