@@ -2,10 +2,15 @@ import type {
   DatasetCase,
   DatasetRecord,
   DatasetRevision,
+  EvaluationRun,
   EvaluationState,
+  ReflectionRecord,
+  ReflectionSuggestion,
+  ReportRecord,
   TargetRecord,
   TargetRevision,
 } from "./model";
+import { aggregateResults, evaluateCase } from "./scenario-engine";
 
 export type CommandResult<T> =
   | { ok: true; value: T }
@@ -66,6 +71,19 @@ export interface EvaluationStore {
   deleteCase(datasetId: string, caseId: string): CommandResult<null>;
   importCases(datasetId: string, json: string): CommandResult<DatasetCase[]>;
   generateCases(datasetId: string): CommandResult<DatasetCase[]>;
+  createRun(input: {
+    targetRevisionId: string;
+    datasetRevisionId: string;
+  }): CommandResult<EvaluationRun>;
+  advanceRun(runId: string): CommandResult<EvaluationRun>;
+  createReport(runId: string): CommandResult<ReportRecord>;
+  submitReflection(
+    reportId: string,
+    suggestionIds: string[],
+  ): CommandResult<ReflectionRecord>;
+  finishReflectionWithoutChanges(
+    reportId: string,
+  ): CommandResult<ReflectionRecord>;
   replaceState(updater: (state: EvaluationState) => EvaluationState): void;
 }
 
@@ -93,6 +111,39 @@ function isImportedCase(value: unknown): value is Omit<DatasetCase, "id"> {
       (item.expected.outcome === "ALLOW" || item.expected.outcome === "DENY") &&
       typeof item.expected.reason === "string",
   );
+}
+
+function suggestionsForReport(
+  reportId: string,
+  revision: TargetRevision,
+): ReflectionSuggestion[] {
+  return [
+    {
+      id: `${reportId}-system-prompt`,
+      reportId,
+      area: "SYSTEM_PROMPT",
+      evidence: "A role-escalation request returned ALLOW instead of DENY.",
+      current: revision.systemPrompt,
+      suggested:
+        "Treat every role-escalation request as DENY unless signed administrator approval is present.",
+    },
+    {
+      id: `${reportId}-tools`,
+      reportId,
+      area: "TOOLS",
+      evidence: "A privileged tool was called for a denied request.",
+      current: revision.tools.join(", ") || "No tools configured",
+      suggested: "Remove RoleGrant from the Target tool allowlist.",
+    },
+    {
+      id: `${reportId}-knowledge`,
+      reportId,
+      area: "KNOWLEDGE",
+      evidence: "The response did not cite the escalation policy.",
+      current: revision.knowledgeBases.join(", ") || "No knowledge configured",
+      suggested: "Privileged Access Escalation Guide",
+    },
+  ];
 }
 
 export function createEvaluationStore(
@@ -415,6 +466,283 @@ export function createEvaluationStore(
         updatedAt: dependencies.now(),
       }));
       return { ok: true, value: fresh };
+    },
+    createRun(input) {
+      const targetRevision = state.targetRevisions.find(
+        (item) => item.id === input.targetRevisionId,
+      );
+      if (!targetRevision) {
+        return { ok: false, error: "Target Revision not found." };
+      }
+      const datasetRevision = state.datasetRevisions.find(
+        (item) => item.id === input.datasetRevisionId,
+      );
+      if (!datasetRevision) {
+        return { ok: false, error: "Dataset Revision not found." };
+      }
+      const dataset = state.datasets.find(
+        (item) => item.id === datasetRevision.datasetId,
+      );
+      if (!dataset || dataset.targetId !== targetRevision.targetId) {
+        return {
+          ok: false,
+          error: "Target and Dataset must belong to the same evaluation scope.",
+        };
+      }
+      const now = dependencies.now();
+      const run: EvaluationRun = {
+        id: dependencies.id(),
+        targetId: targetRevision.targetId,
+        targetRevisionId: targetRevision.id,
+        datasetRevisionId: datasetRevision.id,
+        status: "RUNNING",
+        stage: "evaluate",
+        results: datasetRevision.cases.map((item) => ({
+          caseId: item.id,
+          status: "PENDING",
+        })),
+        createdAt: now,
+        startedAt: now,
+      };
+      replaceState((snapshot) => ({
+        ...snapshot,
+        runs: [...snapshot.runs, run],
+      }));
+      return { ok: true, value: run };
+    },
+    advanceRun(runId) {
+      const run = state.runs.find((item) => item.id === runId);
+      if (!run) return { ok: false, error: "Evaluation not found." };
+      if (run.status !== "RUNNING") {
+        return { ok: true, value: run };
+      }
+      const datasetRevision = state.datasetRevisions.find(
+        (item) => item.id === run.datasetRevisionId,
+      );
+      if (!datasetRevision) {
+        return { ok: false, error: "Dataset Revision not found." };
+      }
+      const nextIndex = run.results.findIndex(
+        (item) => item.status === "PENDING",
+      );
+      if (nextIndex < 0) return store.createReport(runId).ok
+        ? {
+            ok: true,
+            value: state.runs.find((item) => item.id === runId)!,
+          }
+        : { ok: false, error: "Unable to create Evaluation Report." };
+
+      const datasetCase = datasetRevision.cases[nextIndex];
+      if (!datasetCase) {
+        return { ok: false, error: "Evaluation Case not found." };
+      }
+      const results = run.results.map((item, index) =>
+        index === nextIndex ? evaluateCase(datasetCase, nextIndex) : item,
+      );
+      replaceState((snapshot) => ({
+        ...snapshot,
+        runs: snapshot.runs.map((item) =>
+          item.id === runId ? { ...item, results } : item,
+        ),
+      }));
+
+      if (results.every((item) => item.status !== "PENDING")) {
+        const report = store.createReport(runId);
+        if (!report.ok) return report;
+      }
+      return {
+        ok: true,
+        value: state.runs.find((item) => item.id === runId)!,
+      };
+    },
+    createReport(runId) {
+      const run = state.runs.find((item) => item.id === runId);
+      if (!run) return { ok: false, error: "Evaluation not found." };
+      if (run.reportId) {
+        const existing = state.reports.find(
+          (item) => item.id === run.reportId,
+        );
+        return existing
+          ? { ok: true, value: existing }
+          : { ok: false, error: "Evaluation Report not found." };
+      }
+      if (
+        !run.results.length ||
+        run.results.some(
+          (item) => item.status === "PENDING" || item.status === "RUNNING",
+        )
+      ) {
+        return {
+          ok: false,
+          error: "The Evaluation has incomplete cases.",
+        };
+      }
+      const metrics = aggregateResults(run.results);
+      const agent = Number(
+        run.results
+          .reduce((total, item) => total + (item.costUsd ?? 0), 0)
+          .toFixed(4),
+      );
+      const judge = Number((run.results.length * 0.0004).toFixed(4));
+      const now = dependencies.now();
+      const report: ReportRecord = {
+        id: dependencies.id(),
+        runId,
+        targetId: run.targetId,
+        status: metrics.failed || metrics.blocked ? "FAIL" : "PASS",
+        metrics,
+        costs: {
+          agent,
+          judge,
+          evaluationTotal: Number((agent + judge).toFixed(4)),
+        },
+        createdAt: now,
+      };
+      const sourceRevision = state.targetRevisions.find(
+        (item) => item.id === run.targetRevisionId,
+      );
+      if (!sourceRevision) {
+        return { ok: false, error: "Target Revision not found." };
+      }
+      const reflection: ReflectionRecord = {
+        id: dependencies.id(),
+        reportId: report.id,
+        status: "PENDING",
+        suggestions: suggestionsForReport(report.id, sourceRevision),
+        acceptedSuggestionIds: [],
+      };
+      replaceState((snapshot) => ({
+        ...snapshot,
+        reports: [...snapshot.reports, report],
+        reflections: [...snapshot.reflections, reflection],
+        runs: snapshot.runs.map((item) =>
+          item.id === runId
+            ? {
+                ...item,
+                status: report.status,
+                stage: "report",
+                reportId: report.id,
+                completedAt: now,
+              }
+            : item,
+        ),
+      }));
+      return { ok: true, value: report };
+    },
+    submitReflection(reportId, suggestionIds) {
+      const reflection = state.reflections.find(
+        (item) => item.reportId === reportId,
+      );
+      const report = state.reports.find((item) => item.id === reportId);
+      const run = report
+        ? state.runs.find((item) => item.id === report.runId)
+        : undefined;
+      const source = run
+        ? state.targetRevisions.find(
+            (item) => item.id === run.targetRevisionId,
+          )
+        : undefined;
+      if (!reflection || !report || !run || !source) {
+        return { ok: false, error: "Reflection context not found." };
+      }
+      if (reflection.status !== "PENDING") {
+        return { ok: false, error: "Reflection is already complete." };
+      }
+      const selected = reflection.suggestions.filter((item) =>
+        suggestionIds.includes(item.id),
+      );
+      if (!selected.length) {
+        return {
+          ok: false,
+          error: "Select at least one Reflection suggestion.",
+        };
+      }
+      let systemPrompt = source.systemPrompt;
+      let tools = [...source.tools];
+      let mcpServers = [...source.mcpServers];
+      let knowledgeBases = [...source.knowledgeBases];
+      for (const suggestion of selected) {
+        if (suggestion.area === "SYSTEM_PROMPT") {
+          systemPrompt = `${systemPrompt}\n\n${suggestion.suggested}`;
+        } else if (suggestion.area === "TOOLS") {
+          tools = tools.filter((item) => item !== "RoleGrant");
+        } else if (suggestion.area === "MCP") {
+          if (!mcpServers.includes(suggestion.suggested)) {
+            mcpServers.push(suggestion.suggested);
+          }
+        } else if (!knowledgeBases.includes(suggestion.suggested)) {
+          knowledgeBases.push(suggestion.suggested);
+        }
+      }
+      const now = dependencies.now();
+      const revision: TargetRevision = {
+        ...source,
+        id: dependencies.id(),
+        revision:
+          Math.max(
+            ...state.targetRevisions
+              .filter((item) => item.targetId === source.targetId)
+              .map((item) => item.revision),
+          ) + 1,
+        systemPrompt,
+        tools,
+        mcpServers,
+        knowledgeBases,
+        createdAt: now,
+      };
+      const completed: ReflectionRecord = {
+        ...reflection,
+        status: "SUBMITTED",
+        acceptedSuggestionIds: selected.map((item) => item.id),
+        resultingTargetRevisionId: revision.id,
+      };
+      replaceState((snapshot) => ({
+        ...snapshot,
+        targetRevisions: [...snapshot.targetRevisions, revision],
+        targets: snapshot.targets.map((item) =>
+          item.id === source.targetId
+            ? {
+                ...item,
+                currentRevisionId: revision.id,
+                updatedAt: now,
+              }
+            : item,
+        ),
+        reflections: snapshot.reflections.map((item) =>
+          item.id === reflection.id ? completed : item,
+        ),
+        runs: snapshot.runs.map((item) =>
+          item.id === run.id ? { ...item, stage: "complete" } : item,
+        ),
+      }));
+      return { ok: true, value: completed };
+    },
+    finishReflectionWithoutChanges(reportId) {
+      const reflection = state.reflections.find(
+        (item) => item.reportId === reportId,
+      );
+      const report = state.reports.find((item) => item.id === reportId);
+      if (!reflection || !report) {
+        return { ok: false, error: "Reflection context not found." };
+      }
+      if (reflection.status !== "PENDING") {
+        return { ok: false, error: "Reflection is already complete." };
+      }
+      const completed: ReflectionRecord = {
+        ...reflection,
+        status: "NO_CHANGES",
+        acceptedSuggestionIds: [],
+      };
+      replaceState((snapshot) => ({
+        ...snapshot,
+        reflections: snapshot.reflections.map((item) =>
+          item.id === reflection.id ? completed : item,
+        ),
+        runs: snapshot.runs.map((item) =>
+          item.id === report.runId ? { ...item, stage: "complete" } : item,
+        ),
+      }));
+      return { ok: true, value: completed };
     },
     replaceState,
   };
