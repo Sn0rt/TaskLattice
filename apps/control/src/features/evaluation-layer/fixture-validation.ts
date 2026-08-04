@@ -34,6 +34,10 @@ export function validateEvaluationLayerState(state: EvaluationLayerState): strin
   for (const revision of state.datasetRevisions) {
     requireReference(`datasetRevisions.${revision.id}.datasetId`, revision.datasetId, datasetIds);
     requireReference(`datasetRevisions.${revision.id}.targetId`, revision.targetId, targetIds);
+    const dataset = state.datasets.find((item) => item.id === revision.datasetId);
+    if (dataset?.targetId !== revision.targetId) {
+      errors.push(`datasetRevisions.${revision.id}.targetId: ${revision.targetId}`);
+    }
   }
   for (const run of state.runs) {
     requireReference(`runs.${run.id}.targetId`, run.targetId, targetIds);
@@ -41,6 +45,29 @@ export function validateEvaluationLayerState(state: EvaluationLayerState): strin
     requireReference(`runs.${run.id}.datasetId`, run.datasetId, datasetIds);
     requireReference(`runs.${run.id}.datasetRevisionId`, run.datasetRevisionId, datasetRevisionIds);
     for (const evaluatorId of run.evaluatorIds) requireReference(`runs.${run.id}.evaluatorIds`, evaluatorId, evaluatorIds);
+    const targetRevision = state.targetRevisions.find((item) => item.id === run.targetRevisionId);
+    if (targetRevision?.targetId !== run.targetId) {
+      errors.push(`runs.${run.id}.targetRevisionId: ${run.targetRevisionId}`);
+    }
+    const dataset = state.datasets.find((item) => item.id === run.datasetId);
+    if (dataset?.targetId !== run.targetId) {
+      errors.push(`runs.${run.id}.datasetId: ${run.datasetId}`);
+    }
+    const datasetRevision = state.datasetRevisions.find((item) => item.id === run.datasetRevisionId);
+    if (datasetRevision?.datasetId !== run.datasetId || datasetRevision?.targetId !== run.targetId) {
+      errors.push(`runs.${run.id}.datasetRevisionId: ${run.datasetRevisionId}`);
+    }
+    for (const result of run.results) {
+      if (!datasetRevision?.cases.some((item) => item.id === result.caseId)) {
+        errors.push(`runs.${run.id}.results.${result.caseId}.caseId: ${result.caseId}`);
+      }
+      if (result.traceId) {
+        const trace = state.traces.find((item) => item.id === result.traceId);
+        if (trace?.runId !== run.id) {
+          errors.push(`runs.${run.id}.results.${result.caseId}.traceId: ${result.traceId}`);
+        }
+      }
+    }
   }
   for (const report of state.reports) requireReference(`reports.${report.id}.runId`, report.runId, runIds);
   for (const reflection of state.reflections) {
@@ -52,7 +79,13 @@ export function validateEvaluationLayerState(state: EvaluationLayerState): strin
     requireReference(`traces.${trace.id}.targetId`, trace.targetId, targetIds);
     const run = state.runs.find((item) => item.id === trace.runId);
     const datasetRevision = state.datasetRevisions.find((item) => item.id === run?.datasetRevisionId);
+    if (run?.targetId !== trace.targetId) errors.push(`traces.${trace.id}.targetId: ${trace.targetId}`);
     if (!datasetRevision?.cases.some((item) => item.id === trace.caseId)) errors.push(`traces.${trace.id}.caseId: ${trace.caseId}`);
+    const targetRevision = state.targetRevisions.find((item) => item.id === run?.targetRevisionId);
+    const toolIds = new Set(targetRevision?.tools.map((tool) => tool.id) ?? []);
+    for (const evidence of trace.toolEvidence) {
+      requireReference(`traces.${trace.id}.toolEvidence.${evidence.id}.toolId`, evidence.toolId, toolIds);
+    }
     const spanIds = new Set(trace.spans.map((span) => span.id));
     for (const span of trace.spans) if (span.parentSpanId) requireReference(`traces.${trace.id}.spans.${span.id}.parentSpanId`, span.parentSpanId, spanIds);
   }

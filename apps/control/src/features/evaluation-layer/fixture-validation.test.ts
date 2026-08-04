@@ -28,4 +28,90 @@ describe("Evaluation layer fixtures", () => {
       `traces.${state.traces[0]!.id}.runId: missing-run`,
     );
   });
+
+  it("retains every source demo Case in the primary published revision", () => {
+    const revision = evaluationLayerFixtures.datasetRevisions.find(
+      (item) => item.id === "permission-compliance-regression-r1",
+    );
+    expect(revision?.cases.map((item) => item.id)).toEqual([
+      "weather-public",
+      "employee-hr",
+      "employee-denied",
+      "restart-admin",
+      "restart-denied",
+      "bypass-denied",
+    ]);
+  });
+
+  it("keeps draft Case edits isolated from the published predecessor", () => {
+    const state = cloneEvaluationLayerFixtures();
+    const published = state.datasetRevisions.find(
+      (item) => item.id === "permission-compliance-regression-r1",
+    )!;
+    const draft = state.datasetRevisions.find(
+      (item) => item.id === "permission-compliance-regression-r2",
+    )!;
+    (draft.cases[0]!.input.query as string) = "Changed only in the draft";
+    expect(published.cases[0]!.input.query).toBe("What is the weather in Paris?");
+  });
+
+  it("models completed and pending Case results plus transient connection settings", () => {
+    const run = evaluationLayerFixtures.runs.find(
+      (item) => item.id === "run-permission-baseline",
+    )!;
+    expect(run.results.map((item) => item.caseId)).toEqual([
+      "weather-public",
+      "employee-hr",
+      "employee-denied",
+      "restart-admin",
+      "restart-denied",
+      "bypass-denied",
+    ]);
+    expect(run.results.some((item) => item.status === "PENDING")).toBe(false);
+    expect(evaluationLayerFixtures.settings).toMatchObject({
+      provider: "Recorded demo judge",
+      baseUrl: "http://localhost:3000",
+      model: "Recorded demo judge",
+      apiKey: "",
+      testOutcome: "SUCCESS",
+      testFingerprint: "demo-connection-v1",
+    });
+  });
+
+  it("rejects ownership and Tool evidence that disconnect a graph", () => {
+    const wrongTargetRevision = cloneEvaluationLayerFixtures();
+    wrongTargetRevision.runs[0]!.targetRevisionId =
+      "demo-permission-compliance-baseline-r1";
+    expect(validateEvaluationLayerState(wrongTargetRevision)).toContain(
+      "runs.run-permission-baseline.targetRevisionId: demo-permission-compliance-baseline-r1",
+    );
+
+    const wrongDatasetRevision = cloneEvaluationLayerFixtures();
+    wrongDatasetRevision.runs[0]!.datasetRevisionId =
+      "permission-compliance-exploratory-r1";
+    expect(validateEvaluationLayerState(wrongDatasetRevision)).toContain(
+      "runs.run-permission-baseline.datasetRevisionId: permission-compliance-exploratory-r1",
+    );
+
+    const wrongTraceTarget = cloneEvaluationLayerFixtures();
+    wrongTraceTarget.traces[0]!.targetId =
+      "demo-permission-compliance-baseline";
+    expect(validateEvaluationLayerState(wrongTraceTarget)).toContain(
+      "traces.demo-weather-public.targetId: demo-permission-compliance-baseline",
+    );
+
+    const missingTool = cloneEvaluationLayerFixtures();
+    missingTool.traces[0]!.toolEvidence[0]!.toolId = "missing-tool";
+    expect(validateEvaluationLayerState(missingTool)).toContain(
+      "traces.demo-weather-public.toolEvidence.demo-weather-public-call.toolId: missing-tool",
+    );
+  });
+
+  it("rejects a Case result Trace owned by another Run", () => {
+    const state = cloneEvaluationLayerFixtures();
+    state.runs[0]!.results[0]!.traceId = "demo-employee-denied-error";
+    expect(validateEvaluationLayerState(state)).toContain(
+      "runs.run-permission-baseline.results.weather-public.traceId: demo-employee-denied-error",
+    );
+  });
 });

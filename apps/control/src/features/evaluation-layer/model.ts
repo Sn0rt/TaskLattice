@@ -63,6 +63,14 @@ export interface EvaluationLayerRun {
   status: "QUEUED" | "RUNNING" | "COMPLETED" | "PARTIAL" | "FAILED";
   startedAt: string;
   completedAt?: string;
+  results: EvaluationLayerRunResult[];
+}
+
+export interface EvaluationLayerRunResult {
+  caseId: string;
+  status: "PENDING" | "PASS" | "FAIL" | "ERROR";
+  traceId?: string;
+  response?: string;
 }
 
 export interface EvaluationLayerReport {
@@ -152,6 +160,13 @@ export interface EvaluationLayerSettings {
   activeDatasetId: string;
   selectedRunId: string;
   showRawSpans: boolean;
+  provider: string;
+  baseUrl: string;
+  model: string;
+  /** In-memory form state only; fixtures never seed a credential. */
+  apiKey: string;
+  testOutcome: "NOT_TESTED" | "SUCCESS" | "FAILURE";
+  testFingerprint?: string;
 }
 
 export interface EvaluationLayerState {
