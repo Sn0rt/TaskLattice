@@ -39,7 +39,7 @@ export function EvaluationPageFrame({
   const active = (search.get("view") ?? "targets") as EvaluationView;
 
   return (
-    <section className="space-y-6">
+    <section className="space-y-6 max-sm:[&_[data-slot=button]]:min-h-11 max-sm:[&_select]:min-h-11">
       <PageHeader title={title} description={description} actions={action} />
       <Tabs value={active}>
         <TabsList variant="line" aria-label="Evaluation sections">
