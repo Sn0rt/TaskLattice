@@ -12,6 +12,7 @@ const routeLabels: Record<string, string> = {
   dashboard: "Overview",
   datasets: "Datasets",
   evaluations: "Evaluations",
+  evaluation: "Evaluation",
   instances: "Instances",
   instace: "Instances",
   knowledge: "Knowledge Base",
@@ -61,7 +62,36 @@ export function getHeaderBreadcrumbItems(pathname: string): HeaderBreadcrumbItem
       runs: "Evaluation detail",
       reports: "Report detail",
     };
+    const evaluationLayerLabels: Record<string, string> = {
+      targets: "Target",
+      datasets: "Dataset",
+      runs: "Evaluation",
+      overview: "Overview",
+      traces: "Trace",
+      settings: "Settings",
+    };
     const label =
+      routeIndex === 1 &&
+      parts[1] === "evaluation" &&
+      evaluationLayerLabels[part]
+        ? evaluationLayerLabels[part]!
+        : routeIndex === 2 &&
+          parts[1] === "evaluation" &&
+          parts[2] === "targets"
+        ? "Target detail"
+        : routeIndex === 2 &&
+          parts[1] === "evaluation" &&
+          parts[2] === "datasets"
+        ? "Dataset detail"
+        : routeIndex === 2 &&
+          parts[1] === "evaluation" &&
+          parts[2] === "runs"
+        ? "Evaluation detail"
+        : routeIndex === 2 &&
+          parts[1] === "evaluation" &&
+          parts[2] === "traces"
+        ? "Trace analysis"
+        :
       routeIndex === 2 &&
       parts[1] === "evaluations" &&
       evaluationDetailLabels[parts[2] ?? ""]

@@ -74,4 +74,19 @@ describe("getHeaderBreadcrumbItems", () => {
       },
     ]);
   });
+
+  it("labels the isolated Evaluation layer and its detail routes", () => {
+    expect(
+      getHeaderBreadcrumbItems(
+        "/individual/evaluation/targets/demo-permission-compliance",
+      ),
+    ).toEqual([
+      { href: "/individual/evaluation", label: "Evaluation" },
+      { href: "/individual/evaluation/targets", label: "Target" },
+      {
+        href: "/individual/evaluation/targets/demo-permission-compliance",
+        label: "Target detail",
+      },
+    ]);
+  });
 });

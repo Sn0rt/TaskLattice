@@ -5,17 +5,21 @@ import {
   Boxes,
   Bot,
   BrainCircuit,
+  ChartNoAxesCombined,
   CheckCircle2,
   CircleDollarSign,
   CircleHelp,
+  Database,
   FileLock2,
   FileClock,
   FlaskConical,
   Network,
   Search,
   ServerCog,
+  Settings2,
   ShieldCheck,
   Sparkles,
+  Target,
   Waypoints,
   type LucideIcon,
 } from "lucide-react";
@@ -68,6 +72,12 @@ type ProjectRoute =
   | "/$projectId/cost"
   | "/$projectId/traces"
   | "/$projectId/evaluations"
+  | "/$projectId/evaluation/targets"
+  | "/$projectId/evaluation/datasets"
+  | "/$projectId/evaluation/runs"
+  | "/$projectId/evaluation/overview"
+  | "/$projectId/evaluation/traces"
+  | "/$projectId/evaluation/settings"
   | "/$projectId/instances"
   | "/$projectId/requests/new"
   | "/$projectId/access-policies"
@@ -85,7 +95,10 @@ type NavItemDefinition = {
   to: ProjectRoute;
 };
 
-const navGroups: Array<{ items: NavItemDefinition[]; label: string }> = [
+export const projectNavGroups: Array<{
+  items: NavItemDefinition[];
+  label: string;
+}> = [
   {
     label: "Agentic",
     items: [
@@ -110,6 +123,17 @@ const navGroups: Array<{ items: NavItemDefinition[]; label: string }> = [
     ],
   },
   {
+    label: "Evaluation",
+    items: [
+      { icon: Target, label: "Target", to: "/$projectId/evaluation/targets" },
+      { icon: Database, label: "Dataset", to: "/$projectId/evaluation/datasets" },
+      { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs" },
+      { icon: ChartNoAxesCombined, label: "Overview", to: "/$projectId/evaluation/overview" },
+      { icon: Waypoints, label: "Trace", to: "/$projectId/evaluation/traces" },
+      { icon: Settings2, label: "Settings", to: "/$projectId/evaluation/settings" },
+    ],
+  },
+  {
     label: "Observer",
     items: [
       { icon: Waypoints, label: "Traces", to: "/$projectId/traces" },
@@ -123,12 +147,13 @@ const navGroups: Array<{ items: NavItemDefinition[]; label: string }> = [
   },
 ];
 
-function itemIsActive(item: NavItemDefinition, pathname: string, projectId: string) {
+export function itemIsActive(item: NavItemDefinition, pathname: string, projectId: string) {
   const target = item.to.replace("$projectId", encodeURIComponent(projectId));
   if (
     item.to === "/$projectId/instances" ||
     item.to === "/$projectId/access-policies" ||
-    item.to === "/$projectId/evaluations"
+    item.to === "/$projectId/evaluations" ||
+    item.to.startsWith("/$projectId/evaluation/")
   )
     return pathname === target || pathname.startsWith(`${target}/`);
   return pathname === target;
@@ -212,7 +237,7 @@ function ProjectSidebar({ logout, pathname, user }: {
         </SidebarHeader>
         <SidebarContent>
           <nav aria-label="Project navigation" className="flex flex-col py-1">
-            {navGroups.map((group) => (
+            {projectNavGroups.map((group) => (
               <SidebarGroup key={group.label}>
                 <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                 <SidebarGroupContent>
