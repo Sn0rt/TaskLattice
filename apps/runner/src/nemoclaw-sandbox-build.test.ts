@@ -11,6 +11,7 @@ const openClawWrapper = join(
   repositoryRoot,
   "infra/docker/Dockerfile.nemoclaw-openclaw",
 );
+const describeWithBash = process.platform === "win32" ? describe.skip : describe;
 
 async function executable(path: string, contents: string): Promise<void> {
   await writeFile(path, contents, { encoding: "utf8", mode: 0o755 });
@@ -24,7 +25,7 @@ afterEach(async () => {
   );
 });
 
-describe("NemoClaw sandbox image build", () => {
+describeWithBash("NemoClaw sandbox image build", () => {
   it("passes the pinned OpenClaw upstream image through the local wrapper", async () => {
     const root = await mkdtemp(join(tmpdir(), "tasklattice-nemoclaw-build-"));
     temporaryDirectories.push(root);

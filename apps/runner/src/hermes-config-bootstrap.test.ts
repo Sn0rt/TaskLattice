@@ -14,6 +14,7 @@ const bootstrap = resolve(
 const mcpHash = "a".repeat(64);
 const credentialPlaceholder =
   "openshell:resolve:env:v123_OPENAI_API_KEY";
+const pythonCommand = process.platform === "win32" ? "python" : "python3";
 
 function digest(value: string): string {
   return createHash("sha256").update(value).digest("hex");
@@ -87,7 +88,7 @@ custom_providers:
       "--runtime-config-guard",
       guard,
     ];
-    const first = spawnSync("python3", args, {
+    const first = spawnSync(pythonCommand, args, {
       encoding: "utf8",
       env: { ...process.env, OPENAI_API_KEY: credentialPlaceholder },
     });
@@ -100,7 +101,7 @@ custom_providers:
     expect(document.custom_providers[0].api_key).toBe(credentialPlaceholder);
     expect(migrated).not.toContain("sk-OPENSHELL-PROXY-REWRITE");
 
-    const second = spawnSync("python3", args, {
+    const second = spawnSync(pythonCommand, args, {
       encoding: "utf8",
       env: { ...process.env, OPENAI_API_KEY: credentialPlaceholder },
     });

@@ -42,7 +42,10 @@ def require_regular_file(path: Path) -> None:
 def atomic_write(path: Path, data: bytes, mode: int) -> None:
     descriptor, temporary = tempfile.mkstemp(prefix=f".{path.name}.", dir=path.parent)
     try:
-        os.fchmod(descriptor, mode)
+        if hasattr(os, "fchmod"):
+            os.fchmod(descriptor, mode)
+        else:
+            os.chmod(temporary, mode)
         with os.fdopen(descriptor, "wb") as output:
             output.write(data)
             output.flush()
