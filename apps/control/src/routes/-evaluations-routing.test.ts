@@ -42,4 +42,12 @@ describe("Evaluations routes", () => {
       matchRouteIds("/individual/evaluations/runs/run-permission-regression"),
     ).toContain("/$projectId/evaluations/runs/$runId");
   });
+
+  it("matches a Report detail deep link", () => {
+    expect(
+      matchRouteIds(
+        "/individual/evaluations/reports/report-permission-regression",
+      ),
+    ).toContain("/$projectId/evaluations/reports/$reportId");
+  });
 });

@@ -35,6 +35,7 @@ import { Route as ProjectIdRequestsIndexRouteImport } from './routes/$projectId/
 import { Route as ProjectIdRequestsNewRouteImport } from './routes/$projectId/requests/new'
 import { Route as ProjectIdSettingIndexRouteImport } from './routes/$projectId/setting/index'
 import { Route as ProjectIdEvaluationsDatasetsDatasetIdRouteImport } from './routes/$projectId/evaluations/datasets/$datasetId'
+import { Route as ProjectIdEvaluationsReportsReportIdRouteImport } from './routes/$projectId/evaluations/reports/$reportId'
 import { Route as ProjectIdEvaluationsRunsRunIdRouteImport } from './routes/$projectId/evaluations/runs/$runId'
 import { Route as ProjectIdEvaluationsTargetsTargetIdRouteImport } from './routes/$projectId/evaluations/targets/$targetId'
 import { Route as ProjectIdSettingModelRoutingsRoutingIdRouteImport } from './routes/$projectId/setting/model-routings/$routingId'
@@ -177,6 +178,12 @@ const ProjectIdEvaluationsDatasetsDatasetIdRoute =
     path: '/$projectId/evaluations/datasets/$datasetId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ProjectIdEvaluationsReportsReportIdRoute =
+  ProjectIdEvaluationsReportsReportIdRouteImport.update({
+    id: '/$projectId/evaluations/reports/$reportId',
+    path: '/$projectId/evaluations/reports/$reportId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ProjectIdEvaluationsRunsRunIdRoute =
   ProjectIdEvaluationsRunsRunIdRouteImport.update({
     id: '/$projectId/evaluations/runs/$runId',
@@ -223,6 +230,7 @@ export interface FileRoutesByFullPath {
   '/$projectId/requests/': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting/': typeof ProjectIdSettingIndexRoute
   '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
+  '/$projectId/evaluations/reports/$reportId': typeof ProjectIdEvaluationsReportsReportIdRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
   '/$projectId/evaluations/targets/$targetId': typeof ProjectIdEvaluationsTargetsTargetIdRoute
   '/$projectId/setting/model-routings/$routingId': typeof ProjectIdSettingModelRoutingsRoutingIdRoute
@@ -254,6 +262,7 @@ export interface FileRoutesByTo {
   '/$projectId/requests': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting': typeof ProjectIdSettingIndexRoute
   '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
+  '/$projectId/evaluations/reports/$reportId': typeof ProjectIdEvaluationsReportsReportIdRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
   '/$projectId/evaluations/targets/$targetId': typeof ProjectIdEvaluationsTargetsTargetIdRoute
   '/$projectId/setting/model-routings/$routingId': typeof ProjectIdSettingModelRoutingsRoutingIdRoute
@@ -286,6 +295,7 @@ export interface FileRoutesById {
   '/$projectId/requests/': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting/': typeof ProjectIdSettingIndexRoute
   '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
+  '/$projectId/evaluations/reports/$reportId': typeof ProjectIdEvaluationsReportsReportIdRoute
   '/$projectId/evaluations/runs/$runId': typeof ProjectIdEvaluationsRunsRunIdRoute
   '/$projectId/evaluations/targets/$targetId': typeof ProjectIdEvaluationsTargetsTargetIdRoute
   '/$projectId/setting/model-routings/$routingId': typeof ProjectIdSettingModelRoutingsRoutingIdRoute
@@ -319,6 +329,7 @@ export interface FileRouteTypes {
     | '/$projectId/requests/'
     | '/$projectId/setting/'
     | '/$projectId/evaluations/datasets/$datasetId'
+    | '/$projectId/evaluations/reports/$reportId'
     | '/$projectId/evaluations/runs/$runId'
     | '/$projectId/evaluations/targets/$targetId'
     | '/$projectId/setting/model-routings/$routingId'
@@ -350,6 +361,7 @@ export interface FileRouteTypes {
     | '/$projectId/requests'
     | '/$projectId/setting'
     | '/$projectId/evaluations/datasets/$datasetId'
+    | '/$projectId/evaluations/reports/$reportId'
     | '/$projectId/evaluations/runs/$runId'
     | '/$projectId/evaluations/targets/$targetId'
     | '/$projectId/setting/model-routings/$routingId'
@@ -381,6 +393,7 @@ export interface FileRouteTypes {
     | '/$projectId/requests/'
     | '/$projectId/setting/'
     | '/$projectId/evaluations/datasets/$datasetId'
+    | '/$projectId/evaluations/reports/$reportId'
     | '/$projectId/evaluations/runs/$runId'
     | '/$projectId/evaluations/targets/$targetId'
     | '/$projectId/setting/model-routings/$routingId'
@@ -413,6 +426,7 @@ export interface RootRouteChildren {
   ProjectIdRequestsIndexRoute: typeof ProjectIdRequestsIndexRoute
   ProjectIdSettingIndexRoute: typeof ProjectIdSettingIndexRoute
   ProjectIdEvaluationsDatasetsDatasetIdRoute: typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
+  ProjectIdEvaluationsReportsReportIdRoute: typeof ProjectIdEvaluationsReportsReportIdRoute
   ProjectIdEvaluationsRunsRunIdRoute: typeof ProjectIdEvaluationsRunsRunIdRoute
   ProjectIdEvaluationsTargetsTargetIdRoute: typeof ProjectIdEvaluationsTargetsTargetIdRoute
   ProjectIdSettingModelRoutingsRoutingIdRoute: typeof ProjectIdSettingModelRoutingsRoutingIdRoute
@@ -602,6 +616,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdEvaluationsDatasetsDatasetIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$projectId/evaluations/reports/$reportId': {
+      id: '/$projectId/evaluations/reports/$reportId'
+      path: '/$projectId/evaluations/reports/$reportId'
+      fullPath: '/$projectId/evaluations/reports/$reportId'
+      preLoaderRoute: typeof ProjectIdEvaluationsReportsReportIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$projectId/evaluations/runs/$runId': {
       id: '/$projectId/evaluations/runs/$runId'
       path: '/$projectId/evaluations/runs/$runId'
@@ -654,6 +675,8 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectIdSettingIndexRoute: ProjectIdSettingIndexRoute,
   ProjectIdEvaluationsDatasetsDatasetIdRoute:
     ProjectIdEvaluationsDatasetsDatasetIdRoute,
+  ProjectIdEvaluationsReportsReportIdRoute:
+    ProjectIdEvaluationsReportsReportIdRoute,
   ProjectIdEvaluationsRunsRunIdRoute: ProjectIdEvaluationsRunsRunIdRoute,
   ProjectIdEvaluationsTargetsTargetIdRoute:
     ProjectIdEvaluationsTargetsTargetIdRoute,
