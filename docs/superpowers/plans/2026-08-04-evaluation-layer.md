@@ -435,11 +435,14 @@ function EvaluationLayerLayout() {
 The index route throws a TanStack `redirect` to
 `/$projectId/evaluation/targets` with the current `projectId`.
 
-- [ ] **Step 5: Add breadcrumb and route-source tests**
+- [ ] **Step 5: Add breadcrumb and route behavior tests**
 
 Assert that `/individual/evaluation/traces/trace-1` resolves labels
-`Evaluation`, `Trace`, `trace-1`, and that every route file contains the exact
-`createFileRoute` path from the design.
+`Evaluation`, `Trace`, `trace-1`. Exercise the exported active-route helper
+with every list and detail path, and verify that only the matching child item
+is active. Route file registration itself is verified by TanStack route-tree
+generation during typecheck/build and by direct browser navigation in Task 11;
+do not grep route source text.
 
 Run: `npm test --workspace @tasklattice/control -- --run src/components/layout/header-breadcrumb.test.ts src/routes/-evaluation-layer-routing.test.ts`
 
@@ -955,42 +958,60 @@ git commit -m "feat(control): add evaluation mock settings"
 **Files:**
 - Modify only when audit finds a concrete gap: files under `apps/control/src/features/evaluation-layer/**`
 - Modify: `apps/control/src/routes/-evaluation-layer-routing.test.ts`
-- Create: `apps/control/src/features/evaluation-layer/parity-manifest.ts`
-- Create: `apps/control/src/features/evaluation-layer/parity-manifest.test.ts`
+- Create: `apps/control/src/features/evaluation-layer/evaluation-layer-parity.test.tsx`
 - Verify unchanged: `apps/control/src/features/evaluations/**`
 - Verify unchanged: `apps/control/src/features/traces/**`
 
 **Interfaces:**
-- Produces: `evaluationLayerParityManifest`, a checked-in mapping from every AgentEval page/section/action to its TaskLattice component.
+- Consumes: the six real page components under `features/evaluation-layer` and
+  the real `EvaluationLayerProvider`.
+- Produces: behavior-level parity coverage for the visible data formats,
+  section order, control placement, and mock actions.
 
-- [ ] **Step 1: Write the failing parity-manifest test**
+- [ ] **Step 1: Write failing behavior-level parity tests**
 
 ```ts
-import { expect, it } from "vitest";
-import { evaluationLayerParityManifest } from "./parity-manifest";
+it("renders Report sections in AgentEval order through the real page", () => {
+  renderWithEvaluationLayer(<EvaluationReportDetail reportId="report-failed" />);
+  expect(screen.getAllByRole("heading", { level: 2 }).map((item) => item.textContent))
+    .toEqual([
+      "Summary",
+      "Test Results",
+      "Failure reasons",
+      "Tool Evidence",
+      "LLM Judge",
+      "Comparison",
+      "Usage & Cost",
+      "Reflection",
+    ]);
+});
 
-it("covers every AgentEval page in source order", () => {
-  expect(evaluationLayerParityManifest.map((page) => page.label)).toEqual([
-    "Target", "Dataset", "Evaluation", "Overview", "Trace", "Settings",
-  ]);
-  expect(evaluationLayerParityManifest.every((page) =>
-    page.sections.length > 0 && page.actions.every((action) => action.mocked),
-  )).toBe(true);
+it("keeps Settings actions frontend-only and gates save on the real mock test", async () => {
+  renderWithEvaluationLayer(<EvaluationSettingsPage />);
+  await userEvent.click(screen.getByRole("button", { name: "Test connection" }));
+  expect(screen.getByRole("button", { name: "Save and use" })).toBeEnabled();
+  expect(fetchSpy).not.toHaveBeenCalled();
 });
 ```
 
+Add equivalent real-component assertions for Target columns, Dataset local-tab
+order, Evaluation setup field order, Overview metric order, and Trace detail /
+Analysis placement. Each assertion must name the user-visible break it catches;
+do not test a manifest constant or source text.
+
 - [ ] **Step 2: Run and confirm the missing manifest failure**
 
-Run: `npm test --workspace @tasklattice/control -- --run src/features/evaluation-layer/parity-manifest.test.ts`
+Run: `npm test --workspace @tasklattice/control -- --run src/features/evaluation-layer/evaluation-layer-parity.test.tsx`
 
-Expected: FAIL.
+Expected: FAIL before the missing parity behavior or test harness is completed.
 
-- [ ] **Step 3: Add the explicit parity manifest and audit against AgentEval**
+- [ ] **Step 3: Audit the rendered behavior against AgentEval**
 
-Record exact page, section, and action names from `agents.py`, `datasets.py`,
-`runs.py`, `reports.py`, `observations.py`, and `settings.py`. Each manifest
-entry names the React component that renders it and sets `mocked: true` for
-every action. Fix any discovered missing surface inside the new feature only.
+Compare the rendered headings, columns, fields, value formats, local tabs, and
+actions against `agents.py`, `datasets.py`, `runs.py`, `reports.py`,
+`observations.py`, and `settings_page.py`. Fix any discovered missing surface
+inside the new feature only, and keep assertions on real rendered components
+and state transitions.
 
 - [ ] **Step 4: Run focused and full automated verification**
 
