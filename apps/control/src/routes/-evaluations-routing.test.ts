@@ -33,4 +33,13 @@ describe("Evaluations routes", () => {
       ),
     ).toContain("/$projectId/evaluations/datasets/$datasetId");
   });
+
+  it("matches new and Run detail routes", () => {
+    expect(matchRouteIds("/individual/evaluations/new")).toContain(
+      "/$projectId/evaluations/new",
+    );
+    expect(
+      matchRouteIds("/individual/evaluations/runs/run-permission-regression"),
+    ).toContain("/$projectId/evaluations/runs/$runId");
+  });
 });

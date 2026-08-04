@@ -66,6 +66,8 @@ export function getHeaderBreadcrumbItems(pathname: string): HeaderBreadcrumbItem
       parts[1] === "evaluations" &&
       evaluationDetailLabels[parts[2] ?? ""]
         ? evaluationDetailLabels[parts[2]!]!
+        : routeIndex === 1 && parts[1] === "evaluations" && part === "new"
+        ? "New Evaluation"
         : routeIndex === 1 && parts[1] === "agent-garden"
         ? "Agent details"
         :

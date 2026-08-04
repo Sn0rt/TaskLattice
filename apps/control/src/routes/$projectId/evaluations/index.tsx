@@ -8,6 +8,7 @@ import {
 } from "@/features/evaluations/evaluation-shell";
 import { TargetList } from "@/features/evaluations/targets/target-list";
 import { DatasetList } from "@/features/evaluations/datasets/dataset-list";
+import { EvaluationList } from "@/features/evaluations/runs/evaluation-list";
 
 export const Route = createFileRoute("/$projectId/evaluations/")({
   validateSearch: z.object({
@@ -54,6 +55,8 @@ function EvaluationsIndex() {
         <TargetList />
       ) : view === "datasets" ? (
         <DatasetList />
+      ) : view === "evaluations" ? (
+        <EvaluationList />
       ) : (
         <EmptyState {...placeholder} />
       )}
