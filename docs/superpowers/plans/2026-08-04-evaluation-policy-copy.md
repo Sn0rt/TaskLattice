@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Rename all user-visible Dataset copy in the new Evaluation module to Policy while preserving its internal dataset implementation.
+**Goal:** Rename all user-visible Dataset copy in the new Evaluation module to Policy and remove every shared Mock demo badge while preserving internal behavior.
 
-**Architecture:** Update only rendered strings in navigation, breadcrumbs, route frames, Evaluation pages, fixture descriptions, and surfaced mock errors. Keep existing TypeScript identifiers, store commands, fixture keys, tests for internal validation, and `/evaluation/datasets` routes unchanged.
+**Architecture:** Update only rendered strings in navigation, breadcrumbs, route frames, Evaluation pages, fixture descriptions, and surfaced mock errors. Remove the badge once in the shared Evaluation page frame. Keep existing TypeScript identifiers, store commands, fixture keys, tests for internal validation, and `/evaluation/datasets` routes unchanged.
 
 **Tech Stack:** React, TypeScript, Vitest, TanStack Router
 
@@ -33,10 +33,11 @@
 - Modify: `apps/control/src/features/evaluation-layer/reports/report-page.tsx`
 - Modify: `apps/control/src/features/evaluation-layer/mock-store.ts`
 - Modify: `apps/control/src/features/evaluation-layer/fixtures.ts`
+- Modify: `apps/control/src/features/evaluation-layer/shared/evaluation-page-frame.tsx`
 
 **Interfaces:**
 - Consumes: existing Evaluation dataset routes, components, mock store, and fixture graph.
-- Produces: Policy terminology in every user-visible location with unchanged route and data behavior.
+- Produces: Policy terminology and badge-free Evaluation headers in every user-visible location with unchanged route and data behavior.
 
 - [ ] **Step 1: Update focused navigation and breadcrumb expectations**
 
@@ -54,7 +55,7 @@ Expected: FAIL because the UI still returns `Dataset` and `Dataset detail`.
 
 - [ ] **Step 3: Replace rendered strings only**
 
-Change visible singular and plural Dataset labels to Policy and Policies in the files listed above. Keep identifiers such as `datasetId`, `EvaluationDatasetList`, `createDataset`, and route strings containing `/datasets` unchanged.
+Change visible singular and plural Dataset labels to Policy and Policies in the files listed above. Remove the `Badge` import and `badge` prop from `EvaluationLayerPageFrame`. Keep identifiers such as `datasetId`, `EvaluationDatasetList`, `createDataset`, and route strings containing `/datasets` unchanged.
 
 - [ ] **Step 4: Run lightweight verification**
 
@@ -64,7 +65,7 @@ Run: `npm.cmd run typecheck --workspace @tasklattice/control`
 
 Expected: PASS.
 
-Reload `/individual/evaluation/datasets` and confirm the sidebar, breadcrumb, page title, and create button use Policy terminology.
+Reload `/individual/evaluation/datasets` and confirm the sidebar, breadcrumb, page title, and create button use Policy terminology, and that `Mock demo` is absent.
 
 - [ ] **Step 5: Commit**
 
