@@ -17,4 +17,12 @@ describe("Evaluations routes", () => {
       "/$projectId/evaluations/",
     );
   });
+
+  it("matches a Target detail deep link", () => {
+    expect(
+      matchRouteIds(
+        "/individual/evaluations/targets/target-permission-compliance",
+      ),
+    ).toContain("/$projectId/evaluations/targets/$targetId");
+  });
 });

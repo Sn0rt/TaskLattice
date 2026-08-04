@@ -6,6 +6,7 @@ import {
   EvaluationPageFrame,
   type EvaluationView,
 } from "@/features/evaluations/evaluation-shell";
+import { TargetList } from "@/features/evaluations/targets/target-list";
 
 export const Route = createFileRoute("/$projectId/evaluations/")({
   validateSearch: z.object({
@@ -48,7 +49,7 @@ function EvaluationsIndex() {
       title="Evaluations"
       description="Design, run, and improve repeatable Agent evaluations with local mock data."
     >
-      <EmptyState {...placeholder} />
+      {view === "targets" ? <TargetList /> : <EmptyState {...placeholder} />}
     </EvaluationPageFrame>
   );
 }
