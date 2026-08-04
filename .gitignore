@@ -10,6 +10,7 @@ coverage/
 apps/control/server/generated/
 /charts/tasklattice/charts/*.tgz
 /.helm-dependencies/
+/.worktrees/
 *.log
 .env
 control.toml
