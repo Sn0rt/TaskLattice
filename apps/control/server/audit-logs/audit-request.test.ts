@@ -98,7 +98,9 @@ describe("platform audit request capture", () => {
       withFileTypes: true,
     })
       .filter((entry) => entry.isFile())
-      .map((entry) => relative(routeRoot, `${entry.parentPath}/${entry.name}`))
+      .map((entry) =>
+        relative(routeRoot, `${entry.parentPath}/${entry.name}`).replaceAll("\\", "/"),
+      )
       .filter((path) => /\.(?:post|put|patch|delete)\.ts$/.test(path));
 
     const uncovered: string[] = [];
