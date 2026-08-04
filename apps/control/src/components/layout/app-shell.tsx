@@ -16,7 +16,6 @@ import {
   Network,
   Search,
   ServerCog,
-  Settings2,
   ShieldCheck,
   Sparkles,
   Target,
@@ -130,7 +129,6 @@ export const projectNavGroups: Array<{
       { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs" },
       { icon: ChartNoAxesCombined, label: "Overview", to: "/$projectId/evaluation/overview" },
       { icon: Waypoints, label: "Trace", to: "/$projectId/evaluation/traces" },
-      { icon: Settings2, label: "Settings", to: "/$projectId/evaluation/settings" },
     ],
   },
   {
