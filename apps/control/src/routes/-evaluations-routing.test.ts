@@ -25,4 +25,12 @@ describe("Evaluations routes", () => {
       ),
     ).toContain("/$projectId/evaluations/targets/$targetId");
   });
+
+  it("matches a Dataset detail deep link", () => {
+    expect(
+      matchRouteIds(
+        "/individual/evaluations/datasets/dataset-permission-regression",
+      ),
+    ).toContain("/$projectId/evaluations/datasets/$datasetId");
+  });
 });

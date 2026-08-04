@@ -33,6 +33,7 @@ import { Route as ProjectIdInstancesInstanceIdRouteImport } from './routes/$proj
 import { Route as ProjectIdRequestsIndexRouteImport } from './routes/$projectId/requests/index'
 import { Route as ProjectIdRequestsNewRouteImport } from './routes/$projectId/requests/new'
 import { Route as ProjectIdSettingIndexRouteImport } from './routes/$projectId/setting/index'
+import { Route as ProjectIdEvaluationsDatasetsDatasetIdRouteImport } from './routes/$projectId/evaluations/datasets/$datasetId'
 import { Route as ProjectIdEvaluationsTargetsTargetIdRouteImport } from './routes/$projectId/evaluations/targets/$targetId'
 import { Route as ProjectIdSettingModelRoutingsRoutingIdRouteImport } from './routes/$projectId/setting/model-routings/$routingId'
 
@@ -163,6 +164,12 @@ const ProjectIdSettingIndexRoute = ProjectIdSettingIndexRouteImport.update({
   path: '/$projectId/setting/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProjectIdEvaluationsDatasetsDatasetIdRoute =
+  ProjectIdEvaluationsDatasetsDatasetIdRouteImport.update({
+    id: '/$projectId/evaluations/datasets/$datasetId',
+    path: '/$projectId/evaluations/datasets/$datasetId',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ProjectIdEvaluationsTargetsTargetIdRoute =
   ProjectIdEvaluationsTargetsTargetIdRouteImport.update({
     id: '/$projectId/evaluations/targets/$targetId',
@@ -201,6 +208,7 @@ export interface FileRoutesByFullPath {
   '/$projectId/instances/': typeof ProjectIdInstancesIndexRoute
   '/$projectId/requests/': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting/': typeof ProjectIdSettingIndexRoute
+  '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   '/$projectId/evaluations/targets/$targetId': typeof ProjectIdEvaluationsTargetsTargetIdRoute
   '/$projectId/setting/model-routings/$routingId': typeof ProjectIdSettingModelRoutingsRoutingIdRoute
 }
@@ -229,6 +237,7 @@ export interface FileRoutesByTo {
   '/$projectId/instances': typeof ProjectIdInstancesIndexRoute
   '/$projectId/requests': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting': typeof ProjectIdSettingIndexRoute
+  '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   '/$projectId/evaluations/targets/$targetId': typeof ProjectIdEvaluationsTargetsTargetIdRoute
   '/$projectId/setting/model-routings/$routingId': typeof ProjectIdSettingModelRoutingsRoutingIdRoute
 }
@@ -258,6 +267,7 @@ export interface FileRoutesById {
   '/$projectId/instances/': typeof ProjectIdInstancesIndexRoute
   '/$projectId/requests/': typeof ProjectIdRequestsIndexRoute
   '/$projectId/setting/': typeof ProjectIdSettingIndexRoute
+  '/$projectId/evaluations/datasets/$datasetId': typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   '/$projectId/evaluations/targets/$targetId': typeof ProjectIdEvaluationsTargetsTargetIdRoute
   '/$projectId/setting/model-routings/$routingId': typeof ProjectIdSettingModelRoutingsRoutingIdRoute
 }
@@ -288,6 +298,7 @@ export interface FileRouteTypes {
     | '/$projectId/instances/'
     | '/$projectId/requests/'
     | '/$projectId/setting/'
+    | '/$projectId/evaluations/datasets/$datasetId'
     | '/$projectId/evaluations/targets/$targetId'
     | '/$projectId/setting/model-routings/$routingId'
   fileRoutesByTo: FileRoutesByTo
@@ -316,6 +327,7 @@ export interface FileRouteTypes {
     | '/$projectId/instances'
     | '/$projectId/requests'
     | '/$projectId/setting'
+    | '/$projectId/evaluations/datasets/$datasetId'
     | '/$projectId/evaluations/targets/$targetId'
     | '/$projectId/setting/model-routings/$routingId'
   id:
@@ -344,6 +356,7 @@ export interface FileRouteTypes {
     | '/$projectId/instances/'
     | '/$projectId/requests/'
     | '/$projectId/setting/'
+    | '/$projectId/evaluations/datasets/$datasetId'
     | '/$projectId/evaluations/targets/$targetId'
     | '/$projectId/setting/model-routings/$routingId'
   fileRoutesById: FileRoutesById
@@ -373,6 +386,7 @@ export interface RootRouteChildren {
   ProjectIdInstancesIndexRoute: typeof ProjectIdInstancesIndexRoute
   ProjectIdRequestsIndexRoute: typeof ProjectIdRequestsIndexRoute
   ProjectIdSettingIndexRoute: typeof ProjectIdSettingIndexRoute
+  ProjectIdEvaluationsDatasetsDatasetIdRoute: typeof ProjectIdEvaluationsDatasetsDatasetIdRoute
   ProjectIdEvaluationsTargetsTargetIdRoute: typeof ProjectIdEvaluationsTargetsTargetIdRoute
   ProjectIdSettingModelRoutingsRoutingIdRoute: typeof ProjectIdSettingModelRoutingsRoutingIdRoute
 }
@@ -547,6 +561,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProjectIdSettingIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$projectId/evaluations/datasets/$datasetId': {
+      id: '/$projectId/evaluations/datasets/$datasetId'
+      path: '/$projectId/evaluations/datasets/$datasetId'
+      fullPath: '/$projectId/evaluations/datasets/$datasetId'
+      preLoaderRoute: typeof ProjectIdEvaluationsDatasetsDatasetIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$projectId/evaluations/targets/$targetId': {
       id: '/$projectId/evaluations/targets/$targetId'
       path: '/$projectId/evaluations/targets/$targetId'
@@ -589,6 +610,8 @@ const rootRouteChildren: RootRouteChildren = {
   ProjectIdInstancesIndexRoute: ProjectIdInstancesIndexRoute,
   ProjectIdRequestsIndexRoute: ProjectIdRequestsIndexRoute,
   ProjectIdSettingIndexRoute: ProjectIdSettingIndexRoute,
+  ProjectIdEvaluationsDatasetsDatasetIdRoute:
+    ProjectIdEvaluationsDatasetsDatasetIdRoute,
   ProjectIdEvaluationsTargetsTargetIdRoute:
     ProjectIdEvaluationsTargetsTargetIdRoute,
   ProjectIdSettingModelRoutingsRoutingIdRoute:
