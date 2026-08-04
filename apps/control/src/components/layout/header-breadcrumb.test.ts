@@ -82,10 +82,10 @@ describe("getHeaderBreadcrumbItems", () => {
       ),
     ).toEqual([
       { href: "/individual/evaluation", label: "Evaluation" },
-      { href: "/individual/evaluation/targets", label: "Target" },
+      { href: "/individual/evaluation/targets", label: "Agent" },
       {
         href: "/individual/evaluation/targets/demo-permission-compliance",
-        label: "Target detail",
+        label: "Agent detail",
       },
     ]);
   });

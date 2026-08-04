@@ -9,7 +9,7 @@ export const Route = createFileRoute("/$projectId/evaluation/targets/$targetId")
 function EvaluationTargetDetailRoute() {
   const { targetId } = Route.useParams();
   return (
-    <EvaluationLayerPageFrame title="Target detail" description="Inspect immutable Agent revisions, evaluation quality, cost, and Report history.">
+    <EvaluationLayerPageFrame title="Agent detail" description="Inspect immutable Agent revisions, evaluation quality, cost, and Report history.">
       <EvaluationTargetDetail targetId={targetId} />
     </EvaluationLayerPageFrame>
   );

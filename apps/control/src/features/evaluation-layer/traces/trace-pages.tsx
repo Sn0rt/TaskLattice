@@ -6,26 +6,148 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useCurrentProjectId } from "@/hooks/use-project";
 import type { EvaluationLayerTrace } from "../model";
-import { useEvaluationLayerState, useEvaluationLayerStore } from "../mock-provider";
+import {
+  useEvaluationLayerState,
+  useEvaluationLayerStore,
+} from "../mock-provider";
 import { EvaluationLayerStatusBadge } from "../shared/evaluation-status";
-import { EvaluationMetric, EvaluationSection, EvaluationTable, JsonPreview, KeyValueGrid, formatCost } from "../shared/evaluation-ui";
+import {
+  EvaluationMetric,
+  EvaluationSection,
+  EvaluationTable,
+  JsonPreview,
+  KeyValueGrid,
+  formatCost,
+} from "../shared/evaluation-ui";
 
-function observationCount(trace: EvaluationLayerTrace) { return trace.spans.length + trace.toolEvidence.length + (trace.judge ? 1 : 0); }
+function observationCount(trace: EvaluationLayerTrace) {
+  return trace.spans.length + trace.toolEvidence.length + (trace.judge ? 1 : 0);
+}
 function recommendations(trace: EvaluationLayerTrace) {
-  const items: Array<{ title: string; evidence: string; target: string; change: string }> = [];
-  if ((trace.deterministicScores.permission_compliance ?? 1) < 1) items.push({ title: "Enforce permission guard before Tool execution", evidence: trace.deterministicReasons.permission_compliance ?? "Permission compliance failed.", target: "Target tool policy", change: "Block denied Tool requests before the Tool adapter is invoked." });
-  if (trace.toolEvidence.some((item) => item.error || !item.succeeded)) items.push({ title: "Handle Tool failures explicitly", evidence: trace.toolEvidence.find((item) => item.error)?.error ?? "Tool execution failed.", target: "Runtime error handling", change: "Return a bounded failure response and preserve Tool error evidence." });
-  if (trace.judge && Object.values(trace.judge.scores).some((score) => score < 4)) items.push({ title: "Improve the Agent response contract", evidence: trace.judge.summary, target: "Agent response contract", change: "Require a safe, direct response that explains the permission outcome." });
-  if (!trace.response.trim()) items.push({ title: "Require a non-empty response", evidence: "The Agent response is empty.", target: "Target system prompt", change: "Require a concise response for every permission outcome." });
-  return items.filter((item, index) => items.findIndex((candidate) => candidate.target === item.target && candidate.title === item.title) === index);
+  const items: Array<{
+    title: string;
+    evidence: string;
+    target: string;
+    change: string;
+  }> = [];
+  if ((trace.deterministicScores.permission_compliance ?? 1) < 1)
+    items.push({
+      title: "Enforce permission guard before Tool execution",
+      evidence:
+        trace.deterministicReasons.permission_compliance ??
+        "Permission compliance failed.",
+      target: "Agent tool policy",
+      change: "Block denied Tool requests before the Tool adapter is invoked.",
+    });
+  if (trace.toolEvidence.some((item) => item.error || !item.succeeded))
+    items.push({
+      title: "Handle Tool failures explicitly",
+      evidence:
+        trace.toolEvidence.find((item) => item.error)?.error ??
+        "Tool execution failed.",
+      target: "Runtime error handling",
+      change:
+        "Return a bounded failure response and preserve Tool error evidence.",
+    });
+  if (
+    trace.judge &&
+    Object.values(trace.judge.scores).some((score) => score < 4)
+  )
+    items.push({
+      title: "Improve the Agent response contract",
+      evidence: trace.judge.summary,
+      target: "Agent response contract",
+      change:
+        "Require a safe, direct response that explains the permission outcome.",
+    });
+  if (!trace.response.trim())
+    items.push({
+      title: "Require a non-empty response",
+      evidence: "The Agent response is empty.",
+      target: "Agent system prompt",
+      change: "Require a concise response for every permission outcome.",
+    });
+  return items.filter(
+    (item, index) =>
+      items.findIndex(
+        (candidate) =>
+          candidate.target === item.target && candidate.title === item.title,
+      ) === index,
+  );
 }
 
 export function EvaluationTraceList() {
   const state = useEvaluationLayerState();
   const projectId = useCurrentProjectId();
   const [targetId, setTargetId] = useState("all");
-  const traces = state.traces.filter((trace) => targetId === "all" || trace.targetId === targetId);
-  return <div className="space-y-4"><div className="flex justify-end"><Label className="flex items-center gap-3">Target<select className="h-9 min-w-64 rounded-md border bg-background px-3" value={targetId} onChange={(event) => setTargetId(event.target.value)}><option value="all">All Targets</option>{state.targets.map((target) => <option key={target.id} value={target.id}>{target.name}</option>)}</select></Label></div><EvaluationTable><thead><tr><th>Trace</th><th>Case</th><th>Status</th><th>Started</th><th>Observations</th><th>Latency</th><th>Cost</th><th /></tr></thead><tbody>{traces.map((trace) => <tr key={trace.id}><td className="font-mono text-xs">{trace.id}</td><td>{trace.caseId}</td><td><EvaluationLayerStatusBadge status={trace.markedFailed ? "FAIL" : trace.status} /></td><td>{new Date(trace.startedAt).toLocaleString()}</td><td>{observationCount(trace)}</td><td>{trace.latencyMs ? `${trace.latencyMs} ms` : "Not available"}</td><td>{formatCost(trace.costUsd)}</td><td><Button asChild size="sm" variant="ghost"><Link to="/$projectId/evaluation/traces/$traceId" params={{ projectId, traceId: trace.id }}>Open<ArrowRight className="size-4" /></Link></Button></td></tr>)}</tbody></EvaluationTable></div>;
+  const traces = state.traces.filter(
+    (trace) => targetId === "all" || trace.targetId === targetId,
+  );
+  return (
+    <div className="space-y-4">
+      <div className="flex justify-end">
+        <Label className="flex items-center gap-3">
+          Agent
+          <select
+            className="h-9 min-w-64 rounded-md border bg-background px-3"
+            value={targetId}
+            onChange={(event) => setTargetId(event.target.value)}
+          >
+            <option value="all">All Agents</option>
+            {state.targets.map((target) => (
+              <option key={target.id} value={target.id}>
+                {target.name}
+              </option>
+            ))}
+          </select>
+        </Label>
+      </div>
+      <EvaluationTable>
+        <thead>
+          <tr>
+            <th>Trace</th>
+            <th>Case</th>
+            <th>Status</th>
+            <th>Started</th>
+            <th>Observations</th>
+            <th>Latency</th>
+            <th>Cost</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {traces.map((trace) => (
+            <tr key={trace.id}>
+              <td className="font-mono text-xs">{trace.id}</td>
+              <td>{trace.caseId}</td>
+              <td>
+                <EvaluationLayerStatusBadge
+                  status={trace.markedFailed ? "FAIL" : trace.status}
+                />
+              </td>
+              <td>{new Date(trace.startedAt).toLocaleString()}</td>
+              <td>{observationCount(trace)}</td>
+              <td>
+                {trace.latencyMs ? `${trace.latencyMs} ms` : "Not available"}
+              </td>
+              <td>{formatCost(trace.costUsd)}</td>
+              <td>
+                <Button asChild size="sm" variant="ghost">
+                  <Link
+                    to="/$projectId/evaluation/traces/$traceId"
+                    params={{ projectId, traceId: trace.id }}
+                  >
+                    Open
+                    <ArrowRight className="size-4" />
+                  </Link>
+                </Button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </EvaluationTable>
+    </div>
+  );
 }
 
 export function EvaluationTraceDetail({ traceId }: { traceId: string }) {
@@ -34,8 +156,243 @@ export function EvaluationTraceDetail({ traceId }: { traceId: string }) {
   const projectId = useCurrentProjectId();
   const [analysis, setAnalysis] = useState(false);
   const trace = state.traces.find((item) => item.id === traceId);
-  if (!trace) return <EmptyState icon={Waypoints} title="Trace not found" description="This Trace does not exist in the Evaluation demo." action={<Button asChild variant="outline"><Link to="/$projectId/evaluation/traces" params={{ projectId }}>Back to Trace</Link></Button>} />;
+  if (!trace)
+    return (
+      <EmptyState
+        icon={Waypoints}
+        title="Trace not found"
+        description="This Trace does not exist in the Evaluation demo."
+        action={
+          <Button asChild variant="outline">
+            <Link to="/$projectId/evaluation/traces" params={{ projectId }}>
+              Back to Trace
+            </Link>
+          </Button>
+        }
+      />
+    );
   const suggestions = recommendations(trace);
   const errors = trace.spans.filter((span) => span.status === "ERROR");
-  return <div className="space-y-6"><div className="flex flex-wrap items-start justify-between gap-3"><div><h2 className="font-mono text-xl font-semibold">{trace.id}</h2><p className="mt-1 text-sm text-muted-foreground">Case {trace.caseId} · Evaluation {trace.runId}</p></div><div className="flex flex-wrap gap-2"><Button variant="outline" onClick={() => store.markTraceFailed(trace.id, !trace.markedFailed)}>{trace.markedFailed ? "Clear fail mark" : "Mark fail"}</Button><Button variant={analysis ? "default" : "outline"} onClick={() => setAnalysis((value) => !value)}>{analysis ? "Close analysis" : "Analysis"}</Button><Button asChild variant="outline"><Link to="/$projectId/evaluation/traces" params={{ projectId }}>Close</Link></Button></div></div><div className="grid gap-4 md:grid-cols-4"><EvaluationMetric label="Status" value={<EvaluationLayerStatusBadge status={trace.markedFailed ? "FAIL" : trace.status} />} /><EvaluationMetric label="Observations" value={observationCount(trace)} /><EvaluationMetric label="Latency" value={trace.latencyMs ? `${trace.latencyMs} ms` : "Not available"} /><EvaluationMetric label="Cost" value={formatCost(trace.costUsd)} /></div>{analysis ? <EvaluationSection title="Analysis" description="Evidence-backed recommendations from deterministic Trace data." action={<Button size="sm" variant="ghost" onClick={() => setAnalysis(false)}><ArrowLeft className="size-4" />Back to trace detail</Button>}><KeyValueGrid items={[["Spans", trace.spans.length], ["Errors", errors.length], ["Tool calls", trace.toolEvidence.length], ["Judge", trace.judge ? trace.judge.model : "Not available"], ["Deterministic findings", Object.values(trace.deterministicScores).filter((score) => score < 1).length], ["Recommended changes", suggestions.length]]} /><div className="mt-5"><h3 className="font-medium">Recommended changes</h3>{suggestions.length ? <div className="mt-3 grid gap-3">{suggestions.map((item) => <div key={`${item.target}-${item.title}`} className="rounded-md border border-amber-500/25 bg-amber-500/5 p-4"><p className="font-medium">{item.title}</p><p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">{item.target}</p><p className="mt-3 text-sm text-muted-foreground"><strong>Evidence:</strong> {item.evidence}</p><p className="mt-2 text-sm"><strong>Change:</strong> {item.change}</p></div>)}</div> : <p className="mt-2 text-sm text-muted-foreground">No evidence-backed change is recommended for this trace.</p>}</div></EvaluationSection> : null}<EvaluationSection title="Span tree" description="Parent-child ordering, timing, input, output, and errors."><div className="grid gap-2">{trace.spans.map((span) => { const depth = span.parentSpanId ? 1 : 0; return <div key={span.id} className="rounded-md border p-3" style={{ marginLeft: `${depth * 24}px` }}><div className="flex flex-wrap items-center justify-between gap-2"><span className="font-medium">{span.name}</span><span className="flex items-center gap-2"><EvaluationLayerStatusBadge status={span.status} /><span className="text-xs text-muted-foreground">{span.kind}</span></span></div>{span.error ? <p className="mt-2 text-sm text-destructive">{span.error}</p> : null}<div className="mt-3 grid gap-3 md:grid-cols-2">{span.input ? <JsonPreview value={span.input} /> : null}{span.output ? <JsonPreview value={span.output} /> : null}</div></div>; })}</div></EvaluationSection><EvaluationSection title="Response"><p className="whitespace-pre-wrap text-sm leading-6">{trace.response || "Not available"}</p></EvaluationSection><EvaluationSection title="Tool observations"><EvaluationTable><thead><tr><th>Tool</th><th>Requested</th><th>Executed</th><th>Succeeded</th><th>Effect verified</th><th>Latency</th><th>Error</th></tr></thead><tbody>{trace.toolEvidence.map((item) => <tr key={item.id}><td>{item.toolId}</td><td>{String(item.requested)}</td><td>{String(item.executed)}</td><td>{String(item.succeeded)}</td><td>{item.effectVerified === null ? "Not available" : String(item.effectVerified)}</td><td>{item.latencyMs ? `${item.latencyMs} ms` : "Not available"}</td><td>{item.error ?? "—"}</td></tr>)}</tbody></EvaluationTable></EvaluationSection><EvaluationSection title="Judge observation">{trace.judge ? <><KeyValueGrid items={Object.entries(trace.judge.scores)} /><p className="mt-4 text-sm text-muted-foreground">{trace.judge.summary}</p><p className="mt-2 text-xs text-muted-foreground">{trace.judge.model} · prompt {trace.judge.promptVersion} · Langfuse-compatible recorded evidence</p></> : <p className="text-sm text-muted-foreground">Not available</p>}</EvaluationSection><EvaluationSection title="Deterministic scores"><EvaluationTable><thead><tr><th>Check</th><th>Score</th><th>Reason</th></tr></thead><tbody>{Object.entries(trace.deterministicScores).map(([name, score]) => <tr key={name}><td>{name}</td><td>{score}</td><td>{trace.deterministicReasons[name] ?? "Expected behavior observed."}</td></tr>)}</tbody></EvaluationTable></EvaluationSection></div>;
+  return (
+    <div className="space-y-6">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h2 className="font-mono text-xl font-semibold">{trace.id}</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Case {trace.caseId} · Evaluation {trace.runId}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            onClick={() => store.markTraceFailed(trace.id, !trace.markedFailed)}
+          >
+            {trace.markedFailed ? "Clear fail mark" : "Mark fail"}
+          </Button>
+          <Button
+            variant={analysis ? "default" : "outline"}
+            onClick={() => setAnalysis((value) => !value)}
+          >
+            {analysis ? "Close analysis" : "Analysis"}
+          </Button>
+          <Button asChild variant="outline">
+            <Link to="/$projectId/evaluation/traces" params={{ projectId }}>
+              Close
+            </Link>
+          </Button>
+        </div>
+      </div>
+      <div className="grid gap-4 md:grid-cols-4">
+        <EvaluationMetric
+          label="Status"
+          value={
+            <EvaluationLayerStatusBadge
+              status={trace.markedFailed ? "FAIL" : trace.status}
+            />
+          }
+        />
+        <EvaluationMetric
+          label="Observations"
+          value={observationCount(trace)}
+        />
+        <EvaluationMetric
+          label="Latency"
+          value={trace.latencyMs ? `${trace.latencyMs} ms` : "Not available"}
+        />
+        <EvaluationMetric label="Cost" value={formatCost(trace.costUsd)} />
+      </div>
+      {analysis ? (
+        <EvaluationSection
+          title="Analysis"
+          description="Evidence-backed recommendations from deterministic Trace data."
+          action={
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setAnalysis(false)}
+            >
+              <ArrowLeft className="size-4" />
+              Back to trace detail
+            </Button>
+          }
+        >
+          <KeyValueGrid
+            items={[
+              ["Spans", trace.spans.length],
+              ["Errors", errors.length],
+              ["Tool calls", trace.toolEvidence.length],
+              ["Judge", trace.judge ? trace.judge.model : "Not available"],
+              [
+                "Deterministic findings",
+                Object.values(trace.deterministicScores).filter(
+                  (score) => score < 1,
+                ).length,
+              ],
+              ["Recommended changes", suggestions.length],
+            ]}
+          />
+          <div className="mt-5">
+            <h3 className="font-medium">Recommended changes</h3>
+            {suggestions.length ? (
+              <div className="mt-3 grid gap-3">
+                {suggestions.map((item) => (
+                  <div
+                    key={`${item.target}-${item.title}`}
+                    className="rounded-md border border-amber-500/25 bg-amber-500/5 p-4"
+                  >
+                    <p className="font-medium">{item.title}</p>
+                    <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-300">
+                      {item.target}
+                    </p>
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      <strong>Evidence:</strong> {item.evidence}
+                    </p>
+                    <p className="mt-2 text-sm">
+                      <strong>Change:</strong> {item.change}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-2 text-sm text-muted-foreground">
+                No evidence-backed change is recommended for this trace.
+              </p>
+            )}
+          </div>
+        </EvaluationSection>
+      ) : null}
+      <EvaluationSection
+        title="Span tree"
+        description="Parent-child ordering, timing, input, output, and errors."
+      >
+        <div className="grid gap-2">
+          {trace.spans.map((span) => {
+            const depth = span.parentSpanId ? 1 : 0;
+            return (
+              <div
+                key={span.id}
+                className="rounded-md border p-3"
+                style={{ marginLeft: `${depth * 24}px` }}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="font-medium">{span.name}</span>
+                  <span className="flex items-center gap-2">
+                    <EvaluationLayerStatusBadge status={span.status} />
+                    <span className="text-xs text-muted-foreground">
+                      {span.kind}
+                    </span>
+                  </span>
+                </div>
+                {span.error ? (
+                  <p className="mt-2 text-sm text-destructive">{span.error}</p>
+                ) : null}
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  {span.input ? <JsonPreview value={span.input} /> : null}
+                  {span.output ? <JsonPreview value={span.output} /> : null}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </EvaluationSection>
+      <EvaluationSection title="Response">
+        <p className="whitespace-pre-wrap text-sm leading-6">
+          {trace.response || "Not available"}
+        </p>
+      </EvaluationSection>
+      <EvaluationSection title="Tool observations">
+        <EvaluationTable>
+          <thead>
+            <tr>
+              <th>Tool</th>
+              <th>Requested</th>
+              <th>Executed</th>
+              <th>Succeeded</th>
+              <th>Effect verified</th>
+              <th>Latency</th>
+              <th>Error</th>
+            </tr>
+          </thead>
+          <tbody>
+            {trace.toolEvidence.map((item) => (
+              <tr key={item.id}>
+                <td>{item.toolId}</td>
+                <td>{String(item.requested)}</td>
+                <td>{String(item.executed)}</td>
+                <td>{String(item.succeeded)}</td>
+                <td>
+                  {item.effectVerified === null
+                    ? "Not available"
+                    : String(item.effectVerified)}
+                </td>
+                <td>
+                  {item.latencyMs ? `${item.latencyMs} ms` : "Not available"}
+                </td>
+                <td>{item.error ?? "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </EvaluationTable>
+      </EvaluationSection>
+      <EvaluationSection title="Judge observation">
+        {trace.judge ? (
+          <>
+            <KeyValueGrid items={Object.entries(trace.judge.scores)} />
+            <p className="mt-4 text-sm text-muted-foreground">
+              {trace.judge.summary}
+            </p>
+            <p className="mt-2 text-xs text-muted-foreground">
+              {trace.judge.model} · prompt {trace.judge.promptVersion} ·
+              Langfuse-compatible recorded evidence
+            </p>
+          </>
+        ) : (
+          <p className="text-sm text-muted-foreground">Not available</p>
+        )}
+      </EvaluationSection>
+      <EvaluationSection title="Deterministic scores">
+        <EvaluationTable>
+          <thead>
+            <tr>
+              <th>Check</th>
+              <th>Score</th>
+              <th>Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(trace.deterministicScores).map(([name, score]) => (
+              <tr key={name}>
+                <td>{name}</td>
+                <td>{score}</td>
+                <td>
+                  {trace.deterministicReasons[name] ??
+                    "Expected behavior observed."}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </EvaluationTable>
+      </EvaluationSection>
+    </div>
+  );
 }

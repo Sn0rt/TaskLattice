@@ -7,7 +7,7 @@ describe("Evaluation navigation", () => {
       projectNavGroups
         .find((group) => group.label === "Evaluation")
         ?.items.map((item) => item.label),
-    ).toEqual(["Target", "Dataset", "Evaluation", "Overview", "Trace"]);
+    ).toEqual(["Agent", "Dataset", "Evaluation", "Overview", "Trace"]);
     expect(
       projectNavGroups
         .find((group) => group.label === "Observer")

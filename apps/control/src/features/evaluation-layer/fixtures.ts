@@ -69,7 +69,7 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
     {
       id: "demo-permission-compliance-baseline",
       name: "Permission Compliance Agent Baseline",
-      description: "Baseline target for permission-compliance regression comparisons.",
+      description: "Baseline Agent for permission-compliance regression comparisons.",
       currentRevisionId: "demo-permission-compliance-baseline-r1",
       createdAt: "2026-07-28T09:00:00.000Z",
     },

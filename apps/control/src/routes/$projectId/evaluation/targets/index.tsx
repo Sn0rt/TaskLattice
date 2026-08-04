@@ -8,7 +8,7 @@ export const Route = createFileRoute("/$projectId/evaluation/targets/")({
 
 function EvaluationTargets() {
   return (
-    <EvaluationLayerPageFrame title="Target" description="Configure the Agent revisions evaluated by this frontend-only demo.">
+    <EvaluationLayerPageFrame title="Agent" description="Configure the Agent revisions evaluated by this frontend-only demo.">
       <EvaluationTargetList />
     </EvaluationLayerPageFrame>
   );

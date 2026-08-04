@@ -77,7 +77,7 @@ function TargetEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>{targetId ? "Create Target revision" : "Create Target"}</DialogTitle>
+          <DialogTitle>{targetId ? "Create Agent revision" : "Create Agent"}</DialogTitle>
           <DialogDescription>Changes stay inside this browser-tab mock store.</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit}>
@@ -94,7 +94,7 @@ function TargetEditor({
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>Cancel</Button>
-            <Button type="submit">{targetId ? "Create revision" : "Create Target"}</Button>
+            <Button type="submit">{targetId ? "Create revision" : "Create Agent"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -109,7 +109,7 @@ export function EvaluationTargetList() {
   return (
     <>
       <div className="flex justify-end">
-        <Button onClick={() => setEditorOpen(true)}><Plus className="size-4" />New Target</Button>
+        <Button onClick={() => setEditorOpen(true)}><Plus className="size-4" />New Agent</Button>
       </div>
       <EvaluationTable>
         <thead><tr><th>Name</th><th>Model</th><th>Revision</th><th>Tools</th><th>MCP Servers</th><th>Knowledge Bases</th><th>Last status</th><th>Pass rate</th><th>Evaluation cost</th><th /></tr></thead>
@@ -144,7 +144,7 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
     [state.targetRevisions, targetId],
   );
   if (!target) {
-    return <EmptyState icon={TargetIcon} title="Target not found" description="This Target does not exist in the Evaluation demo." action={<Button asChild variant="outline"><Link to="/$projectId/evaluation/targets" params={{ projectId }}>Back to Target</Link></Button>} />;
+    return <EmptyState icon={TargetIcon} title="Agent not found" description="This Agent does not exist in the Evaluation demo." action={<Button asChild variant="outline"><Link to="/$projectId/evaluation/targets" params={{ projectId }}>Back to Agent</Link></Button>} />;
   }
   const current = revisions.find((item) => item.id === target.currentRevisionId)!;
   const metrics = targetMetrics(state, target.id);

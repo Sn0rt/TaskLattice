@@ -252,9 +252,9 @@ export function createEvaluationLayerStore(
     },
     createTarget(input) {
       const name = input.name.trim();
-      if (!name) return fail("Target name is required.", "INVALID_INPUT");
+      if (!name) return fail("Agent name is required.", "INVALID_INPUT");
       if (state.targets.some((target) => target.name.toLowerCase() === name.toLowerCase())) {
-        return fail("Target names must be unique.", "CONFLICT");
+        return fail("Agent names must be unique.", "CONFLICT");
       }
       const targetId = dependencies.id();
       const revisionId = dependencies.id();
@@ -288,11 +288,11 @@ export function createEvaluationLayerStore(
     },
     createTargetRevision(targetId, input) {
       const target = state.targets.find((item) => item.id === targetId);
-      if (!target) return fail("Target not found.", "NOT_FOUND");
+      if (!target) return fail("Agent not found.", "NOT_FOUND");
       const current = state.targetRevisions.find(
         (revision) => revision.id === target.currentRevisionId,
       );
-      if (!current) return fail("Target revision not found.", "NOT_FOUND");
+      if (!current) return fail("Agent revision not found.", "NOT_FOUND");
       const revisionId = dependencies.id();
       const revision: EvaluationLayerTargetRevision = {
         ...current,
@@ -316,7 +316,7 @@ export function createEvaluationLayerStore(
     },
     createDataset(input) {
       if (!state.targets.some((target) => target.id === input.targetId)) {
-        return fail("Target not found.", "NOT_FOUND");
+        return fail("Agent not found.", "NOT_FOUND");
       }
       const name = input.name.trim();
       if (!name) return fail("Dataset name is required.", "INVALID_INPUT");
@@ -501,10 +501,10 @@ export function createEvaluationLayerStore(
       const datasetRevision = state.datasetRevisions.find(
         (revision) => revision.id === input.datasetRevisionId,
       );
-      if (!targetRevision) return fail("Target revision not found.", "NOT_FOUND");
+      if (!targetRevision) return fail("Agent revision not found.", "NOT_FOUND");
       if (!datasetRevision) return fail("Dataset revision not found.", "NOT_FOUND");
       if (targetRevision.targetId !== datasetRevision.targetId) {
-        return fail("Target and Dataset must share a Target.", "CONFLICT");
+        return fail("Agent and Dataset must share an Agent.", "CONFLICT");
       }
       const runId = dependencies.id();
       const now = dependencies.now();
