@@ -8,7 +8,7 @@ export const Route = createFileRoute("/$projectId/evaluation/datasets/")({
 
 function EvaluationDatasets() {
   return (
-    <EvaluationLayerPageFrame title="Policy" description="Build versioned evaluation cases with deterministic mock data.">
+    <EvaluationLayerPageFrame title="Test Case" description="Build versioned evaluation cases with deterministic mock data.">
       <EvaluationDatasetList />
     </EvaluationLayerPageFrame>
   );

@@ -66,7 +66,7 @@ export function EvaluationRunList() {
           <tr>
             <th>Evaluation</th>
             <th>Agent</th>
-            <th>Policy</th>
+            <th>Test Case</th>
             <th>Status</th>
             <th>Progress</th>
             <th>Started</th>
@@ -184,7 +184,7 @@ export function EvaluationRunSetup() {
     <div className="mx-auto max-w-4xl space-y-6">
       <EvaluationSection
         title="Evaluation configuration"
-        description="Choose immutable Agent and Policy revisions before selecting evaluators."
+        description="Choose immutable Agent and Test Case revisions before selecting evaluators."
       >
         <div className="grid gap-5">
           <Label className="grid gap-2">
@@ -219,7 +219,7 @@ export function EvaluationRunSetup() {
             </select>
           </Label>
           <Label className="grid gap-2">
-            Policy revision
+            Test Case revision
             <select
               className="h-11 rounded-md border bg-background px-3"
               value={datasetRevisionId}
@@ -359,7 +359,7 @@ export function EvaluationRunDetail({ runId }: { runId: string }) {
       <KeyValueGrid
         items={[
           ["Agent revision", run.targetRevisionId],
-          ["Policy revision", run.datasetRevisionId],
+          ["Test Case revision", run.datasetRevisionId],
           ["Evaluators", run.evaluatorIds.join(", ")],
           ["Judge model", state.settings.model],
           ["Started", new Date(run.startedAt).toLocaleString()],

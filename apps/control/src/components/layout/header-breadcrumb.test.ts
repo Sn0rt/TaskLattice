@@ -94,10 +94,10 @@ describe("getHeaderBreadcrumbItems", () => {
       ),
     ).toEqual([
       { href: "/individual/evaluation", label: "Evaluation" },
-      { href: "/individual/evaluation/datasets", label: "Policy" },
+      { href: "/individual/evaluation/datasets", label: "Test Case" },
       {
         href: "/individual/evaluation/datasets/permission-compliance-regression",
-        label: "Policy detail",
+        label: "Test Case detail",
       },
     ]);
   });

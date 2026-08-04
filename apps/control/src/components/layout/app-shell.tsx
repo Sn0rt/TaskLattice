@@ -125,7 +125,7 @@ export const projectNavGroups: Array<{
     label: "Evaluation",
     items: [
       { icon: Target, label: "Agent", to: "/$projectId/evaluation/targets" },
-      { icon: Database, label: "Policy", to: "/$projectId/evaluation/datasets" },
+      { icon: Database, label: "Test Case", to: "/$projectId/evaluation/datasets" },
       { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs" },
       { icon: ChartNoAxesCombined, label: "Overview", to: "/$projectId/evaluation/overview" },
       { icon: Waypoints, label: "Trace", to: "/$projectId/evaluation/traces" },

@@ -76,7 +76,7 @@ export function EvaluationReportDetail({ reportId }: { reportId: string }) {
           ["Report", report.id],
           ["Evaluation", run.id],
           ["Agent", target.name],
-          ["Policy", dataset.name],
+          ["Test Case", dataset.name],
           ["Status", <EvaluationLayerStatusBadge status={report.status} />],
           ["Created", new Date(report.createdAt).toLocaleString()],
         ]}

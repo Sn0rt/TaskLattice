@@ -114,7 +114,7 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
       id: "permission-compliance-regression",
       targetId: "demo-permission-compliance",
       name: "Permission Compliance Regression",
-      description: "Demonstration permission-compliance evaluation policy",
+      description: "Demonstration permission-compliance evaluation test case",
       currentRevisionId: "permission-compliance-regression-r1",
       createdAt: "2026-07-30T10:00:00.000Z",
     },

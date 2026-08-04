@@ -64,7 +64,7 @@ export function getHeaderBreadcrumbItems(pathname: string): HeaderBreadcrumbItem
     };
     const evaluationLayerLabels: Record<string, string> = {
       targets: "Agent",
-      datasets: "Policy",
+      datasets: "Test Case",
       runs: "Evaluation",
       overview: "Overview",
       traces: "Trace",
@@ -82,7 +82,7 @@ export function getHeaderBreadcrumbItems(pathname: string): HeaderBreadcrumbItem
         : routeIndex === 2 &&
           parts[1] === "evaluation" &&
           parts[2] === "datasets"
-        ? "Policy detail"
+        ? "Test Case detail"
         : routeIndex === 2 &&
           parts[1] === "evaluation" &&
           parts[2] === "runs" &&

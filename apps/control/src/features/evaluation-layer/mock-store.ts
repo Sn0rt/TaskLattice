@@ -319,7 +319,7 @@ export function createEvaluationLayerStore(
         return fail("Agent not found.", "NOT_FOUND");
       }
       const name = input.name.trim();
-      if (!name) return fail("Policy name is required.", "INVALID_INPUT");
+      if (!name) return fail("Test Case name is required.", "INVALID_INPUT");
       const datasetId = dependencies.id();
       const revisionId = dependencies.id();
       const now = dependencies.now();
@@ -353,7 +353,7 @@ export function createEvaluationLayerStore(
     },
     updateDatasetDraft(datasetId, input) {
       const dataset = state.datasets.find((item) => item.id === datasetId);
-      if (!dataset) return fail("Policy not found.", "NOT_FOUND");
+      if (!dataset) return fail("Test Case not found.", "NOT_FOUND");
       replaceState((snapshot) => ({
         ...snapshot,
         datasets: snapshot.datasets.map((item) =>
@@ -381,11 +381,11 @@ export function createEvaluationLayerStore(
       ]);
       return updated
         ? { ok: true, value: { caseId } }
-        : fail("Policy draft not found.", "NOT_FOUND");
+        : fail("Test Case draft not found.", "NOT_FOUND");
     },
     updateCase(datasetId, caseId, input) {
       const draft = draftFor(datasetId);
-      if (!draft) return fail("Policy draft not found.", "NOT_FOUND");
+      if (!draft) return fail("Test Case draft not found.", "NOT_FOUND");
       if (!draft.cases.some((item) => item.id === caseId)) {
         return fail("Case not found.", "NOT_FOUND");
       }
@@ -435,7 +435,7 @@ export function createEvaluationLayerStore(
         id: dependencies.id(),
       }));
       if (!updateDraftCases(datasetId, (cases) => [...cases, ...imported])) {
-        return fail("Policy draft not found.", "NOT_FOUND");
+        return fail("Test Case draft not found.", "NOT_FOUND");
       }
       return { ok: true, value: { imported: imported.length } };
     },
@@ -463,14 +463,14 @@ export function createEvaluationLayerStore(
         },
       ];
       if (!updateDraftCases(datasetId, (cases) => [...cases, ...generated])) {
-        return fail("Policy draft not found.", "NOT_FOUND");
+        return fail("Test Case draft not found.", "NOT_FOUND");
       }
       return { ok: true, value: { generated: generated.length } };
     },
     publishDatasetRevision(datasetId) {
       const dataset = state.datasets.find((item) => item.id === datasetId);
       const draft = draftFor(datasetId);
-      if (!dataset || !draft) return fail("Policy draft not found.", "NOT_FOUND");
+      if (!dataset || !draft) return fail("Test Case draft not found.", "NOT_FOUND");
       if (!draft.cases.length) {
         return fail("Add at least one case before publishing.", "INVALID_INPUT");
       }
@@ -502,9 +502,9 @@ export function createEvaluationLayerStore(
         (revision) => revision.id === input.datasetRevisionId,
       );
       if (!targetRevision) return fail("Agent revision not found.", "NOT_FOUND");
-      if (!datasetRevision) return fail("Policy revision not found.", "NOT_FOUND");
+      if (!datasetRevision) return fail("Test Case revision not found.", "NOT_FOUND");
       if (targetRevision.targetId !== datasetRevision.targetId) {
-        return fail("Agent and Policy must share an Agent.", "CONFLICT");
+        return fail("Agent and Test Case must share an Agent.", "CONFLICT");
       }
       const runId = dependencies.id();
       const now = dependencies.now();

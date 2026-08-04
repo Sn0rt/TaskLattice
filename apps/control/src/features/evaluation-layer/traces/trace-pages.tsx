@@ -36,7 +36,7 @@ function recommendations(trace: EvaluationLayerTrace) {
       evidence:
         trace.deterministicReasons.permission_compliance ??
         "Permission compliance failed.",
-      target: "Agent tool policy",
+      target: "Agent tool Test Case",
       change: "Block denied Tool requests before the Tool adapter is invoked.",
     });
   if (trace.toolEvidence.some((item) => item.error || !item.succeeded))

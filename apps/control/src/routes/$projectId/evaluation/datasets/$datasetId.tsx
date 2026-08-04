@@ -6,5 +6,5 @@ export const Route = createFileRoute("/$projectId/evaluation/datasets/$datasetId
 
 function DatasetDetailRoute() {
   const { datasetId } = Route.useParams();
-  return <EvaluationLayerPageFrame title="Policy detail" description="Manage draft Cases, schema, immutable revisions, and Evaluation history."><EvaluationDatasetDetail datasetId={datasetId} /></EvaluationLayerPageFrame>;
+  return <EvaluationLayerPageFrame title="Test Case detail" description="Manage draft Cases, schema, immutable revisions, and Evaluation history."><EvaluationDatasetDetail datasetId={datasetId} /></EvaluationLayerPageFrame>;
 }
