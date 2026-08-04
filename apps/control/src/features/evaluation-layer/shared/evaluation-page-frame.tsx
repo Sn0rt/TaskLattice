@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { PageHeader } from "@/components/layout/page-header";
-import { Badge } from "@/components/ui/badge";
 
 export function EvaluationLayerPageFrame({
   title,
@@ -18,7 +17,6 @@ export function EvaluationLayerPageFrame({
       <PageHeader
         title={title}
         description={description}
-        badge={<Badge variant="outline">Mock demo</Badge>}
         actions={action}
       />
       {children}

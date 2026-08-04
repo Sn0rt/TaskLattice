@@ -96,7 +96,7 @@ function DatasetEditor({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Create Dataset</DialogTitle>
+          <DialogTitle>Create Policy</DialogTitle>
           <DialogDescription>
             Create an editable draft in the isolated Evaluation mock.
           </DialogDescription>
@@ -141,7 +141,7 @@ function DatasetEditor({
             >
               Cancel
             </Button>
-            <Button type="submit">Create Dataset</Button>
+            <Button type="submit">Create Policy</Button>
           </DialogFooter>
         </form>
       </DialogContent>
@@ -331,7 +331,7 @@ export function EvaluationDatasetList() {
       <div className="flex justify-end">
         <Button onClick={() => setOpen(true)}>
           <Plus className="size-4" />
-          New Dataset
+          New Policy
         </Button>
       </div>
       <EvaluationTable>
@@ -416,12 +416,12 @@ export function EvaluationDatasetDetail({ datasetId }: { datasetId: string }) {
     return (
       <EmptyState
         icon={Database}
-        title="Dataset not found"
-        description="This Dataset does not exist in the Evaluation demo."
+        title="Policy not found"
+        description="This Policy does not exist in the Evaluation demo."
         action={
           <Button asChild variant="outline">
             <Link to="/$projectId/evaluation/datasets" params={{ projectId }}>
-              Back to Dataset
+              Back to Policy
             </Link>
           </Button>
         }

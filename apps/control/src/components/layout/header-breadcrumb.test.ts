@@ -88,5 +88,17 @@ describe("getHeaderBreadcrumbItems", () => {
         label: "Agent detail",
       },
     ]);
+    expect(
+      getHeaderBreadcrumbItems(
+        "/individual/evaluation/datasets/permission-compliance-regression",
+      ),
+    ).toEqual([
+      { href: "/individual/evaluation", label: "Evaluation" },
+      { href: "/individual/evaluation/datasets", label: "Policy" },
+      {
+        href: "/individual/evaluation/datasets/permission-compliance-regression",
+        label: "Policy detail",
+      },
+    ]);
   });
 });
