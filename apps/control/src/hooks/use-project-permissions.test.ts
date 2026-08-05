@@ -40,4 +40,32 @@ describe("permissionsForRole", () => {
       canViewResources: true,
     });
   });
+
+  it("keeps ADA and ISS as read-only evaluators with audit access", () => {
+    for (const role of ["ada", "iss"] as const) {
+      expect(permissionsForRole(role)).toEqual({
+        canCreateAgents: false,
+        canCreateProject: false,
+        canDeleteProject: false,
+        canInviteMembers: false,
+        canManageResources: false,
+        canManageProject: false,
+        canViewAuditLogs: true,
+        canViewResources: true,
+      });
+    }
+  });
+
+  it("lets FRT operate agents without project management capabilities", () => {
+    expect(permissionsForRole("frt")).toEqual({
+      canCreateAgents: true,
+      canCreateProject: false,
+      canDeleteProject: false,
+      canInviteMembers: false,
+      canManageResources: false,
+      canManageProject: false,
+      canViewAuditLogs: true,
+      canViewResources: true,
+    });
+  });
 });

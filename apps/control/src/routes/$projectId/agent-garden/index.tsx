@@ -23,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { AgentDetailSheet } from "@/components/agent-garden/agent-detail-sheet";
+import { AgentApprovalQueue } from "@/components/agent-garden/agent-approval-queue";
 import { AgentGardenCard } from "@/components/agent-garden/agent-garden-card";
 import { agentGardenFacetGroups } from "@/components/agent-garden/agent-garden-facets";
 import { ConnectAgentSheet } from "@/components/agent-garden/connect-agent-sheet";
@@ -264,6 +265,8 @@ function AgentGarden() {
           {(refresh.error ?? remove.error)?.message}
         </p>
       ) : null}
+
+      <AgentApprovalQueue onNotice={setNotice} />
 
       <div className="flex flex-col gap-3 border-b py-4 sm:flex-row sm:items-end">
         <label className="relative min-w-0 flex-1 sm:max-w-xl">

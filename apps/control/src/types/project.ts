@@ -1,6 +1,6 @@
 export type ProjectType = "personal" | "team";
 
-export type ProjectRole = "admin" | "member" | "compliance";
+export type ProjectRole = "admin" | "member" | "compliance" | "ada" | "frt" | "iss";
 
 export interface Project {
   id: string;

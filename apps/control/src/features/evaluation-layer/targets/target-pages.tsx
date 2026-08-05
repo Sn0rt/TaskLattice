@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentProjectId } from '@/hooks/use-project';
 import { cn } from '@/lib/utils';
@@ -307,13 +308,17 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
     return { report, metrics, targetRevision, datasetRevision, delta: previous === undefined ? undefined : metrics.passRate - previous };
   });
   const latest = reportRows[0];
-  const components = [
-    ['Model', current.model, 'Execution model'],
-    ['Prompt', current.prompt?.trim() ? 'Configured' : 'None', 'System instructions'],
-    ['Tools', current.tools.map((item) => item.name).join(', ') || 'None', 'Callable capabilities'],
-    ['MCP', current.mcpServers?.map((item) => item.name).join(', ') || 'None', 'External capability servers'],
-    ['KB', current.knowledgeBases?.map((item) => item.name).join(', ') || 'None', 'Grounding sources'],
-  ];
+  const delegatedAgents = current.tools.filter((tool) => tool.connectionType === 'agent');
+  const directTools = current.tools.filter((tool) => tool.connectionType !== 'agent');
+  const mcpServers = current.mcpServers ?? [];
+  const knowledgeBases = current.knowledgeBases ?? [];
+  const renderToolTable = (tools: EvaluationLayerTool[]) => (
+    <EvaluationTable><thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Tags</th></tr></thead><tbody>{tools.map((tool) => <tr key={tool.id}><td className='font-medium'>{tool.name}</td><td>{tool.description}</td><td>{tool.enabled ? 'Enabled' : 'Disabled'}</td><td>{tool.tags.join(', ')}</td></tr>)}</tbody></EvaluationTable>
+  );
+  const renderResourceTable = (resources: EvaluationLayerResource[]) => (
+    <EvaluationTable><thead><tr><th>Name</th><th>ID</th></tr></thead><tbody>{resources.map((resource) => <tr key={resource.id}><td className='font-medium'>{resource.name}</td><td className='font-mono text-xs'>{resource.id}</td></tr>)}</tbody></EvaluationTable>
+  );
+  const emptyText = (label: string) => <p className='rounded-lg border p-6 text-sm text-muted-foreground'>No {label} configured for this revision.</p>;
   const evaluate = () => {
     store.selectActiveTarget(target.id);
     void navigate({ to: '/$projectId/evaluation/runs/new', params: { projectId } });
@@ -328,7 +333,23 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
         <div className='flex gap-2'><Button variant='outline' onClick={() => setEditorOpen(true)}><Plus className='size-4' />New revision</Button><Button onClick={evaluate}>Evaluate</Button></div>
       </div>
       <EvaluationSection title='Configuration'>
-        <EvaluationTable><thead><tr><th>Component</th><th>Selection</th><th>Purpose</th></tr></thead><tbody>{components.map(([component, selection, purpose]) => <tr key={component}><td className='font-medium'>{component}</td><td>{selection}</td><td>{purpose}</td></tr>)}</tbody></EvaluationTable>
+        <KeyValueGrid className='lg:grid-cols-3' items={[
+          ['Model', current.model],
+          ['Revision', `R${current.revision}`],
+          ['Prompt', current.prompt?.trim() ? 'Configured' : 'None'],
+        ]} />
+        <Tabs defaultValue='agents' className='mt-4'>
+          <TabsList>
+            <TabsTrigger value='agents'>Agents ({delegatedAgents.length})</TabsTrigger>
+            <TabsTrigger value='tools'>Tools ({directTools.length})</TabsTrigger>
+            <TabsTrigger value='mcp'>MCP ({mcpServers.length})</TabsTrigger>
+            <TabsTrigger value='kb'>KB ({knowledgeBases.length})</TabsTrigger>
+          </TabsList>
+          <TabsContent value='agents'>{delegatedAgents.length ? renderToolTable(delegatedAgents) : emptyText('delegated Agents')}</TabsContent>
+          <TabsContent value='tools'>{directTools.length ? renderToolTable(directTools) : emptyText('Tools')}</TabsContent>
+          <TabsContent value='mcp'>{mcpServers.length ? renderResourceTable(mcpServers) : emptyText('MCP servers')}</TabsContent>
+          <TabsContent value='kb'>{knowledgeBases.length ? renderResourceTable(knowledgeBases) : emptyText('Knowledge bases')}</TabsContent>
+        </Tabs>
       </EvaluationSection>
       <EvaluationSection title='Latest Report'>
         {latest ? (

@@ -8,15 +8,18 @@ import type {
 export function permissionsForRole(role: ProjectRole): ProjectPermissions {
   const isManager = role === "admin";
   const isCompliance = role === "compliance";
+  // Security-evaluation roles (ADA/ISS) are read-only; FRT also operates agents.
+  const isReadOnlyEvaluator = role === "ada" || role === "iss";
+  const isFirstResponse = role === "frt";
   return {
-    canCreateAgents: !isCompliance,
+    canCreateAgents: !isCompliance && !isReadOnlyEvaluator,
     canCreateProject: isManager,
     canDeleteProject: role === "admin",
     canInviteMembers: isManager,
     canManageResources: isManager,
     canManageProject: isManager,
-    // Compliance is a read-only auditor: traceability requires audit-log access.
-    canViewAuditLogs: isManager || isCompliance,
+    // Traceability: every security role can inspect audit logs.
+    canViewAuditLogs: isManager || isCompliance || isReadOnlyEvaluator || isFirstResponse,
     canViewResources: true,
   };
 }

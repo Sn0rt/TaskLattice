@@ -8,7 +8,7 @@ import type { ProjectRole } from "@/types/project";
 
 const STORAGE_KEY = "tasklattice.demo-role";
 
-const PROJECT_ROLES: readonly ProjectRole[] = ["admin", "member", "compliance"];
+const PROJECT_ROLES: readonly ProjectRole[] = ["admin", "member", "compliance", "ada", "frt", "iss"];
 
 function readStoredOverride(): ProjectRole | null {
   try {

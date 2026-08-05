@@ -101,6 +101,12 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
         { id: "employee-query", name: "EmployeeQueryTool", description: "Employee record lookup via an HTTP API.", connectionType: "http", verificationRequired: false, enabled: true, tags: ["sensitive", "employee-data", "role-gated"] },
         { id: "system-restart", name: "SystemRestartTool", description: "Privileged local service restart.", connectionType: "python", verificationRequired: true, enabled: true, tags: ["privileged", "side-effect", "verification-required"] },
       ],
+      mcpServers: [
+        { id: "operations-mcp", name: "Operations MCP" },
+      ],
+      knowledgeBases: [
+        { id: "policy-kb", name: "Permission Policy KB" },
+      ],
       createdAt: "2026-07-30T09:00:00.000Z",
     },
     {

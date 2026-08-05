@@ -33,13 +33,19 @@ describe("Evaluation navigation", () => {
 });
 
 describe("Role-based navigation whitelist", () => {
-  it("shows every item to admin and member", () => {
-    for (const role of ["admin", "member"] as const) {
-      for (const group of projectNavGroups) {
-        expect(visibleLabels(group.label, role)).toEqual(
-          group.items.map((item) => item.label),
-        );
-      }
+  it("shows every item to admin", () => {
+    for (const group of projectNavGroups) {
+      expect(visibleLabels(group.label, "admin")).toEqual(
+        group.items.map((item) => item.label),
+      );
+    }
+  });
+
+  it("shows member everything except admin-only Guardrails", () => {
+    for (const group of projectNavGroups) {
+      expect(visibleLabels(group.label, "member")).toEqual(
+        group.items.filter((item) => item.label !== "Guardrails").map((item) => item.label),
+      );
     }
   });
 
@@ -55,5 +61,32 @@ describe("Role-based navigation whitelist", () => {
       "Traces",
       "Overview",
     ]);
+  });
+
+  it("gives ADA and ISS risk-assessment, behavior, and traceability surfaces", () => {
+    for (const role of ["ada", "iss"] as const) {
+      expect(visibleLabels("Agentic", role)).toEqual(["Skills", "MCP Servers"]);
+      expect(visibleLabels("Evaluation", role)).toEqual(["Agent", "Test Case", "Evaluation"]);
+      expect(visibleLabels("Security", role)).toEqual(["Audit Logs"]);
+      expect(visibleLabels("Observer", role)).toEqual(["Traces", "Overview"]);
+    }
+  });
+
+  it("gives FRT everything except policy compliance and admin-only surfaces", () => {
+    expect(visibleLabels("Agentic", "frt")).toEqual([
+      "Agent Garden",
+      "Instances",
+      "Skills",
+      "MCP Servers",
+      "Knowledge Base",
+      "Memory",
+    ]);
+    expect(visibleLabels("Evaluation", "frt")).toEqual(["Agent", "Test Case", "Evaluation"]);
+    expect(visibleLabels("Security", "frt")).toEqual([
+      "Access Policies",
+      "Runtime Policies",
+      "Audit Logs",
+    ]);
+    expect(visibleLabels("Observer", "frt")).toEqual(["Traces", "Overview"]);
   });
 });

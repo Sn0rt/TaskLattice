@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as ProjectIdIndexRouteImport } from './routes/$projectId/index'
 import { Route as ProjectIdCostRouteImport } from './routes/$projectId/cost'
 import { Route as ProjectIdEvaluationRouteImport } from './routes/$projectId/evaluation'
+import { Route as ProjectIdGuardrailsRouteImport } from './routes/$projectId/guardrails'
 import { Route as ProjectIdKnowledgeBaseRouteImport } from './routes/$projectId/knowledge-base'
 import { Route as ProjectIdMcpServersRouteImport } from './routes/$projectId/mcp-servers'
 import { Route as ProjectIdMemoryRouteImport } from './routes/$projectId/memory'
@@ -77,6 +78,11 @@ const ProjectIdCostRoute = ProjectIdCostRouteImport.update({
 const ProjectIdEvaluationRoute = ProjectIdEvaluationRouteImport.update({
   id: '/$projectId/evaluation',
   path: '/$projectId/evaluation',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProjectIdGuardrailsRoute = ProjectIdGuardrailsRouteImport.update({
+  id: '/$projectId/guardrails',
+  path: '/$projectId/guardrails',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProjectIdKnowledgeBaseRoute = ProjectIdKnowledgeBaseRouteImport.update({
@@ -305,6 +311,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/$projectId/cost': typeof ProjectIdCostRoute
   '/$projectId/evaluation': typeof ProjectIdEvaluationRouteWithChildren
+  '/$projectId/guardrails': typeof ProjectIdGuardrailsRoute
   '/$projectId/knowledge-base': typeof ProjectIdKnowledgeBaseRoute
   '/$projectId/mcp-servers': typeof ProjectIdMcpServersRoute
   '/$projectId/memory': typeof ProjectIdMemoryRoute
@@ -350,6 +357,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/$projectId/cost': typeof ProjectIdCostRoute
+  '/$projectId/guardrails': typeof ProjectIdGuardrailsRoute
   '/$projectId/knowledge-base': typeof ProjectIdKnowledgeBaseRoute
   '/$projectId/mcp-servers': typeof ProjectIdMcpServersRoute
   '/$projectId/memory': typeof ProjectIdMemoryRoute
@@ -397,6 +405,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/$projectId/cost': typeof ProjectIdCostRoute
   '/$projectId/evaluation': typeof ProjectIdEvaluationRouteWithChildren
+  '/$projectId/guardrails': typeof ProjectIdGuardrailsRoute
   '/$projectId/knowledge-base': typeof ProjectIdKnowledgeBaseRoute
   '/$projectId/mcp-servers': typeof ProjectIdMcpServersRoute
   '/$projectId/memory': typeof ProjectIdMemoryRoute
@@ -445,6 +454,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/$projectId/cost'
     | '/$projectId/evaluation'
+    | '/$projectId/guardrails'
     | '/$projectId/knowledge-base'
     | '/$projectId/mcp-servers'
     | '/$projectId/memory'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/$projectId/cost'
+    | '/$projectId/guardrails'
     | '/$projectId/knowledge-base'
     | '/$projectId/mcp-servers'
     | '/$projectId/memory'
@@ -536,6 +547,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/$projectId/cost'
     | '/$projectId/evaluation'
+    | '/$projectId/guardrails'
     | '/$projectId/knowledge-base'
     | '/$projectId/mcp-servers'
     | '/$projectId/memory'
@@ -583,6 +595,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRoute
   ProjectIdCostRoute: typeof ProjectIdCostRoute
   ProjectIdEvaluationRoute: typeof ProjectIdEvaluationRouteWithChildren
+  ProjectIdGuardrailsRoute: typeof ProjectIdGuardrailsRoute
   ProjectIdKnowledgeBaseRoute: typeof ProjectIdKnowledgeBaseRoute
   ProjectIdMcpServersRoute: typeof ProjectIdMcpServersRoute
   ProjectIdMemoryRoute: typeof ProjectIdMemoryRoute
@@ -647,6 +660,13 @@ declare module '@tanstack/react-router' {
       path: '/$projectId/evaluation'
       fullPath: '/$projectId/evaluation'
       preLoaderRoute: typeof ProjectIdEvaluationRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/$projectId/guardrails': {
+      id: '/$projectId/guardrails'
+      path: '/$projectId/guardrails'
+      fullPath: '/$projectId/guardrails'
+      preLoaderRoute: typeof ProjectIdGuardrailsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/$projectId/knowledge-base': {
@@ -968,6 +988,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRoute,
   ProjectIdCostRoute: ProjectIdCostRoute,
   ProjectIdEvaluationRoute: ProjectIdEvaluationRouteWithChildren,
+  ProjectIdGuardrailsRoute: ProjectIdGuardrailsRoute,
   ProjectIdKnowledgeBaseRoute: ProjectIdKnowledgeBaseRoute,
   ProjectIdMcpServersRoute: ProjectIdMcpServersRoute,
   ProjectIdMemoryRoute: ProjectIdMemoryRoute,

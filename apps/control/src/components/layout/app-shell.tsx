@@ -17,6 +17,7 @@ import {
   Network,
   Search,
   ServerCog,
+  ShieldAlert,
   ShieldCheck,
   Sparkles,
   Target,
@@ -85,6 +86,7 @@ type ProjectRoute =
   | "/$projectId/evaluation/settings"
   | "/$projectId/instances"
   | "/$projectId/requests/new"
+  | "/$projectId/guardrails"
   | "/$projectId/access-policies"
   | "/$projectId/audit-logs"
   | "/$projectId/runtime-policies"
@@ -108,6 +110,17 @@ type NavItemDefinition = {
 
 /** Roles allowed to manage agents and run security evaluations. */
 const AGENT_OPERATOR_ROLES: ProjectRole[] = ["admin", "member"];
+/**
+ * Agent Risk Assessment: Agent/Skill security evaluation + MCP tool misuse
+ * detection (ADA, FRT, ISS per the role-requirement matrix).
+ */
+const SECURITY_EVAL_ROLES: ProjectRole[] = [...AGENT_OPERATOR_ROLES, "ada", "frt", "iss"];
+/** Agent ID Management: agent identification/registry (FRT only). */
+const AGENT_IDENTITY_ROLES: ProjectRole[] = [...AGENT_OPERATOR_ROLES, "frt"];
+/** Agent Permission Management: policy compliance + permission control (FRT, Compliance). */
+const POLICY_ROLES: ProjectRole[] = [...AGENT_OPERATOR_ROLES, "frt", "compliance"];
+/** Guardrail management is admin-only. */
+const GUARDRAIL_ADMIN_ROLES: ProjectRole[] = ["admin"];
 
 export function navItemVisibleForRole(
   item: NavItemDefinition,
@@ -123,32 +136,39 @@ export const projectNavGroups: Array<{
   {
     label: "Agentic",
     items: [
-      { icon: Bot, label: "Agent Garden", to: "/$projectId/agent-garden", roles: AGENT_OPERATOR_ROLES },
-      { icon: Boxes, label: "Instances", to: "/$projectId/instances", roles: AGENT_OPERATOR_ROLES },
-      { icon: Sparkles, label: "Skills", to: "/$projectId/skills", roles: AGENT_OPERATOR_ROLES },
-      { icon: ServerCog, label: "MCP Servers", to: "/$projectId/mcp-servers", roles: AGENT_OPERATOR_ROLES },
-      { icon: Network, label: "Knowledge Base", to: "/$projectId/knowledge-base", roles: AGENT_OPERATOR_ROLES },
-      { icon: BrainCircuit, label: "Memory", to: "/$projectId/memory", roles: AGENT_OPERATOR_ROLES },
+      { icon: Bot, label: "Agent Garden", to: "/$projectId/agent-garden", roles: AGENT_IDENTITY_ROLES },
+      { icon: Boxes, label: "Instances", to: "/$projectId/instances", roles: AGENT_IDENTITY_ROLES },
+      { icon: Sparkles, label: "Skills", to: "/$projectId/skills", roles: SECURITY_EVAL_ROLES },
+      { icon: ServerCog, label: "MCP Servers", to: "/$projectId/mcp-servers", roles: SECURITY_EVAL_ROLES },
+      { icon: Network, label: "Knowledge Base", to: "/$projectId/knowledge-base", roles: AGENT_IDENTITY_ROLES },
+      { icon: BrainCircuit, label: "Memory", to: "/$projectId/memory", roles: AGENT_IDENTITY_ROLES },
     ],
   },
   {
     label: "Security",
     items: [
       {
+        icon: ShieldAlert,
+        label: "Guardrails",
+        to: "/$projectId/guardrails",
+        roles: GUARDRAIL_ADMIN_ROLES,
+      },
+      {
         icon: ShieldCheck,
         label: "Access Policies",
         to: "/$projectId/access-policies",
+        roles: POLICY_ROLES,
       },
-      { icon: FileLock2, label: "Runtime Policies", to: "/$projectId/runtime-policies" },
+      { icon: FileLock2, label: "Runtime Policies", to: "/$projectId/runtime-policies", roles: POLICY_ROLES },
       { icon: FileClock, label: "Audit Logs", to: "/$projectId/audit-logs" },
     ],
   },
   {
     label: "Evaluation",
     items: [
-      { icon: Target, label: "Agent", to: "/$projectId/evaluation/targets", roles: AGENT_OPERATOR_ROLES },
-      { icon: Database, label: "Test Case", to: "/$projectId/evaluation/datasets", roles: AGENT_OPERATOR_ROLES },
-      { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs", roles: AGENT_OPERATOR_ROLES },
+      { icon: Target, label: "Agent", to: "/$projectId/evaluation/targets", roles: SECURITY_EVAL_ROLES },
+      { icon: Database, label: "Test Case", to: "/$projectId/evaluation/datasets", roles: SECURITY_EVAL_ROLES },
+      { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs", roles: SECURITY_EVAL_ROLES },
     ],
   },
   {
@@ -240,6 +260,9 @@ function DemoRoleSwitcher({ actualRole }: { actualRole: ProjectRole }) {
           <option value="admin">admin</option>
           <option value="member">member</option>
           <option value="compliance">compliance</option>
+          <option value="ada">ADA</option>
+          <option value="frt">FRT</option>
+          <option value="iss">ISS</option>
         </select>
       </label>
     </div>
