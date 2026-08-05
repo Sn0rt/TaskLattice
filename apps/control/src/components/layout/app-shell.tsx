@@ -10,6 +10,7 @@ import {
   CircleDollarSign,
   CircleHelp,
   Database,
+  Eye,
   FileLock2,
   FileClock,
   FlaskConical,
@@ -45,7 +46,12 @@ import {
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
 import { useProject } from "@/hooks/use-project";
-import { useProjectPermissions } from "@/hooks/use-project-permissions";
+import {
+  useEffectiveProjectRole,
+  useProjectPermissions,
+} from "@/hooks/use-project-permissions";
+import { DemoRoleProvider, useDemoRole } from "@/hooks/use-demo-role";
+import type { ProjectRole } from "@/types/project";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 import { applyPlatformPreferences, getPlatformTheme } from "@/lib/platform-preferences";
@@ -92,7 +98,23 @@ type NavItemDefinition = {
   icon: LucideIcon;
   label: string;
   to: ProjectRoute;
+  /**
+   * Role whitelist: when set, only these project roles see the item.
+   * Omit to show the item to every role. Keeps per-role navigation
+   * extensible without changing the filter logic.
+   */
+  roles?: ProjectRole[];
 };
+
+/** Roles allowed to manage agents and run security evaluations. */
+const AGENT_OPERATOR_ROLES: ProjectRole[] = ["admin", "member"];
+
+export function navItemVisibleForRole(
+  item: NavItemDefinition,
+  role: ProjectRole,
+): boolean {
+  return !item.roles || item.roles.includes(role);
+}
 
 export const projectNavGroups: Array<{
   items: NavItemDefinition[];
@@ -101,12 +123,12 @@ export const projectNavGroups: Array<{
   {
     label: "Agentic",
     items: [
-      { icon: Bot, label: "Agent Garden", to: "/$projectId/agent-garden" },
-      { icon: Boxes, label: "Instances", to: "/$projectId/instances" },
-      { icon: Sparkles, label: "Skills", to: "/$projectId/skills" },
-      { icon: ServerCog, label: "MCP Servers", to: "/$projectId/mcp-servers" },
-      { icon: Network, label: "Knowledge Base", to: "/$projectId/knowledge-base" },
-      { icon: BrainCircuit, label: "Memory", to: "/$projectId/memory" },
+      { icon: Bot, label: "Agent Garden", to: "/$projectId/agent-garden", roles: AGENT_OPERATOR_ROLES },
+      { icon: Boxes, label: "Instances", to: "/$projectId/instances", roles: AGENT_OPERATOR_ROLES },
+      { icon: Sparkles, label: "Skills", to: "/$projectId/skills", roles: AGENT_OPERATOR_ROLES },
+      { icon: ServerCog, label: "MCP Servers", to: "/$projectId/mcp-servers", roles: AGENT_OPERATOR_ROLES },
+      { icon: Network, label: "Knowledge Base", to: "/$projectId/knowledge-base", roles: AGENT_OPERATOR_ROLES },
+      { icon: BrainCircuit, label: "Memory", to: "/$projectId/memory", roles: AGENT_OPERATOR_ROLES },
     ],
   },
   {
@@ -124,18 +146,17 @@ export const projectNavGroups: Array<{
   {
     label: "Evaluation",
     items: [
-      { icon: Target, label: "Agent", to: "/$projectId/evaluation/targets" },
-      { icon: Database, label: "Test Case", to: "/$projectId/evaluation/datasets" },
-      { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs" },
-      { icon: ChartNoAxesCombined, label: "Overview", to: "/$projectId/evaluation/overview" },
-      { icon: Waypoints, label: "Trace", to: "/$projectId/evaluation/traces" },
+      { icon: Target, label: "Agent", to: "/$projectId/evaluation/targets", roles: AGENT_OPERATOR_ROLES },
+      { icon: Database, label: "Test Case", to: "/$projectId/evaluation/datasets", roles: AGENT_OPERATOR_ROLES },
+      { icon: FlaskConical, label: "Evaluation", to: "/$projectId/evaluation/runs", roles: AGENT_OPERATOR_ROLES },
     ],
   },
   {
     label: "Observer",
     items: [
       { icon: Waypoints, label: "Traces", to: "/$projectId/traces" },
-      { icon: CircleDollarSign, label: "Cost", to: "/$projectId/cost" },
+      { icon: ChartNoAxesCombined, label: "Overview", to: "/$projectId/evaluation/overview" },
+      { icon: CircleDollarSign, label: "Cost", to: "/$projectId/cost", roles: AGENT_OPERATOR_ROLES },
     ],
   },
 ];
@@ -194,6 +215,37 @@ function DisabledNav({ icon: Icon, label }: { icon: LucideIcon; label: string })
   );
 }
 
+function DemoRoleSwitcher({ actualRole }: { actualRole: ProjectRole }) {
+  const { roleOverride, setRoleOverride } = useDemoRole();
+  return (
+    <div className="px-2 pb-1 group-data-[collapsible=icon]:hidden">
+      <label className="grid gap-1.5 text-xs text-muted-foreground">
+        <span className="flex items-center gap-1.5">
+          <Eye className="size-3.5" />
+          Demo · View as role
+        </span>
+        <select
+          aria-label="Demo role override"
+          className="h-8 rounded-md border bg-background px-2 text-xs text-foreground"
+          value={roleOverride ?? ""}
+          onChange={(event) =>
+            setRoleOverride(
+              event.target.value === ""
+                ? null
+                : (event.target.value as ProjectRole),
+            )
+          }
+        >
+          <option value="">Actual ({actualRole})</option>
+          <option value="admin">admin</option>
+          <option value="member">member</option>
+          <option value="compliance">compliance</option>
+        </select>
+      </label>
+    </div>
+  );
+}
+
 function ProjectSidebar({ logout, pathname, user }: {
   logout: () => void | Promise<void>;
   pathname: string;
@@ -208,7 +260,19 @@ function ProjectSidebar({ logout, pathname, user }: {
   const [createProjectOpen, setCreateProjectOpen] = useState(false);
   const [toastProject, setToastProject] = useState("");
   const projectId = currentProject?.id ?? "individual";
+  const role = useEffectiveProjectRole(currentProject?.role);
   const permissions = useProjectPermissions(currentProject?.role);
+  const visibleGroups = projectNavGroups
+    .map((group) => ({
+      ...group,
+      items: group.items.filter(
+        (item) =>
+          navItemVisibleForRole(item, role) &&
+          (item.to !== "/$projectId/audit-logs" ||
+            permissions.canViewAuditLogs),
+      ),
+    }))
+    .filter((group) => group.items.length > 0);
   return (
     <ToastProvider duration={3_000} swipeDirection="right">
       <Sidebar collapsible="icon">
@@ -230,21 +294,16 @@ function ProjectSidebar({ logout, pathname, user }: {
         </SidebarHeader>
         <SidebarContent>
           <nav aria-label="Project navigation" className="flex flex-col py-1">
-            {projectNavGroups.map((group) => (
+            {visibleGroups.map((group) => (
               <SidebarGroup key={group.label}>
                 <SidebarGroupLabel>{group.label}</SidebarGroupLabel>
                 <SidebarGroupContent>
                   <SidebarMenu>
-                    {group.items
-                      .filter((item) =>
-                        item.to !== "/$projectId/audit-logs" ||
-                        permissions.canViewAuditLogs,
-                      )
-                      .map((item) => (
-                        <Fragment key={item.to}>
-                          <NavigationItem item={item} pathname={pathname} projectId={projectId} />
-                        </Fragment>
-                      ))}
+                    {group.items.map((item) => (
+                      <Fragment key={item.to}>
+                        <NavigationItem item={item} pathname={pathname} projectId={projectId} />
+                      </Fragment>
+                    ))}
                   </SidebarMenu>
                 </SidebarGroupContent>
               </SidebarGroup>
@@ -252,6 +311,7 @@ function ProjectSidebar({ logout, pathname, user }: {
           </nav>
         </SidebarContent>
         <SidebarFooter className="border-t border-sidebar-border p-2">
+          <DemoRoleSwitcher actualRole={currentProject?.role ?? "member"} />
           <SidebarMenu>
             <DisabledNav icon={CircleHelp} label="Help & documentation" />
           </SidebarMenu>
@@ -350,8 +410,9 @@ export function AppShell() {
   };
 
   return (
-    <TooltipProvider delayDuration={250}>
-      <SidebarProvider open={sidebarOpen} onOpenChange={handleSidebarOpenChange}>
+    <DemoRoleProvider>
+      <TooltipProvider delayDuration={250}>
+        <SidebarProvider open={sidebarOpen} onOpenChange={handleSidebarOpenChange}>
         <ProjectSidebar
           logout={logout}
           pathname={pathname}
@@ -407,7 +468,8 @@ export function AppShell() {
             )}
           </main>
         </SidebarInset>
-      </SidebarProvider>
-    </TooltipProvider>
+        </SidebarProvider>
+      </TooltipProvider>
+    </DemoRoleProvider>
   );
 }

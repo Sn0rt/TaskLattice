@@ -8,6 +8,7 @@ import {
   Blocks,
   Bot,
   Braces,
+  Briefcase,
   Bug,
   ChartNoAxesCombined,
   ClipboardPlus,
@@ -33,6 +34,7 @@ const icons: Partial<Record<AgentGardenIntegrationType, LucideIcon>> = {
 };
 
 const catalogIcons: Record<string, LucideIcon> = {
+  briefcase: Briefcase,
   bug: Bug,
   chart: ChartNoAxesCombined,
   "clipboard-plus": ClipboardPlus,

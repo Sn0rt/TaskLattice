@@ -27,4 +27,17 @@ describe("permissionsForRole", () => {
       canViewResources: true,
     });
   });
+
+  it("grants compliance read-only audit access without management capabilities", () => {
+    expect(permissionsForRole("compliance")).toEqual({
+      canCreateAgents: false,
+      canCreateProject: false,
+      canDeleteProject: false,
+      canInviteMembers: false,
+      canManageResources: false,
+      canManageProject: false,
+      canViewAuditLogs: true,
+      canViewResources: true,
+    });
+  });
 });

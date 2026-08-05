@@ -2,7 +2,13 @@ export interface EvaluationLayerTarget {
   id: string;
   name: string;
   description: string;
+  /** Agent Garden catalog icon key (e.g. "briefcase", "headphones"). */
+  icon?: string;
   currentRevisionId: string;
+  /** Live-monitoring demo: simulated online status, mutated by tickSimulation. */
+  liveStatus: "ONLINE" | "DEGRADED" | "OFFLINE";
+  /** Live-monitoring demo: last simulated activity, drives list ordering. */
+  lastActivityAt: string;
   createdAt: string;
 }
 
@@ -14,6 +20,7 @@ export interface EvaluationLayerTool {
   verificationRequired: boolean;
   enabled: boolean;
   tags: string[];
+  testRequirements?: string[];
 }
 
 export interface EvaluationLayerTargetRevision {
@@ -23,7 +30,24 @@ export interface EvaluationLayerTargetRevision {
   model: string;
   adapter: string;
   tools: EvaluationLayerTool[];
+  prompt?: string;
+  mcpServers?: EvaluationLayerResource[];
+  knowledgeBases?: EvaluationLayerResource[];
   createdAt: string;
+}
+
+export interface EvaluationLayerResource {
+  id: string;
+  name: string;
+}
+
+export interface EvaluationLayerDatasetColumn {
+  name: string;
+  kind: 'input' | 'output';
+  dataType: 'string' | 'number' | 'boolean' | 'json';
+  required: boolean;
+  description: string;
+  locked?: boolean;
 }
 
 export interface EvaluationLayerCase {
@@ -32,6 +56,8 @@ export interface EvaluationLayerCase {
   expectedOutput: Record<string, unknown>;
   tags: string[];
   source: string;
+  referenceAnswer?: string;
+  metadata?: Record<string, unknown>;
 }
 
 export interface EvaluationLayerDataset {
@@ -41,6 +67,7 @@ export interface EvaluationLayerDataset {
   description: string;
   currentRevisionId: string;
   createdAt: string;
+  schema?: EvaluationLayerDatasetColumn[];
 }
 
 export interface EvaluationLayerDatasetRevision {
@@ -102,6 +129,8 @@ export interface EvaluationLayerToolEvidence {
   executedArguments: Record<string, unknown> | null;
   output: Record<string, unknown> | null;
   error: string | null;
+  traceId?: string;
+  observationId?: string | null;
   startedAt: string | null;
   endedAt: string | null;
   latencyMs: number | null;
@@ -114,6 +143,19 @@ export interface EvaluationLayerJudge {
   summary: string;
   model: string;
   promptVersion: string;
+  traceId?: string;
+  observationId?: string | null;
+  usageCost?: EvaluationLayerUsageCost;
+}
+
+export interface EvaluationLayerUsageCost {
+  category: string;
+  model: string;
+  inputTokens: number;
+  outputTokens: number;
+  cachedTokens: number;
+  reasoningTokens: number;
+  costUsd: number;
 }
 
 export interface EvaluationLayerSpan {
@@ -127,6 +169,13 @@ export interface EvaluationLayerSpan {
   input?: Record<string, unknown>;
   output?: Record<string, unknown>;
   error?: string;
+  metadata?: Record<string, unknown>;
+  observationType?: string;
+  level?: string;
+  statusMessage?: string;
+  model?: string;
+  usageDetails?: Record<string, number>;
+  costDetails?: Record<string, number>;
 }
 
 export interface EvaluationLayerTrace {
@@ -143,6 +192,7 @@ export interface EvaluationLayerTrace {
   deterministicReasons: Record<string, string>;
   toolEvidence: EvaluationLayerToolEvidence[];
   judge?: EvaluationLayerJudge;
+  usageCosts?: EvaluationLayerUsageCost[];
   spans: EvaluationLayerSpan[];
   markedFailed: boolean;
 }
@@ -160,6 +210,8 @@ export interface EvaluationLayerSettings {
   activeDatasetId: string;
   selectedRunId: string;
   showRawSpans: boolean;
+  /** Trace sampling rate (0-100); what-if preview only, no data is dropped. */
+  samplingRate: number;
   provider: string;
   baseUrl: string;
   model: string;
@@ -167,6 +219,40 @@ export interface EvaluationLayerSettings {
   apiKey: string;
   testOutcome: "NOT_TESTED" | "SUCCESS" | "FAILURE";
   testFingerprint?: string;
+}
+
+export interface EvaluationLayerActivityEvent {
+  id: string;
+  at: string;
+  targetId: string;
+  kind: "TRACE" | "STATUS";
+  message: string;
+  traceId?: string;
+  status?: "PASS" | "FAIL" | "ERROR" | "ONLINE" | "DEGRADED" | "OFFLINE";
+}
+
+/**
+ * Structured execution-log entry (pure frontend mock). One data source with
+ * three renderings: the run terminal UI, the report audit log, and analysis.
+ */
+export interface EvaluationLayerLogEntry {
+  id: string;
+  runId: string;
+  at: string;
+  caseId?: string;
+  actor: "agent" | "tool" | "judge" | "system";
+  action:
+    | "run_started"
+    | "case_started"
+    | "tool_requested"
+    | "tool_executed"
+    | "tool_blocked"
+    | "judge_scored"
+    | "case_completed"
+    | "run_completed";
+  outcome: "allowed" | "blocked" | "violation" | "error" | "info";
+  detail: string;
+  traceId?: string;
 }
 
 export interface EvaluationLayerState {
@@ -179,5 +265,9 @@ export interface EvaluationLayerState {
   reflections: EvaluationLayerReflection[];
   traces: EvaluationLayerTrace[];
   evaluators: EvaluationLayerEvaluator[];
+  /** Execution logs per run, append-only, kept after the run completes. */
+  logs: EvaluationLayerLogEntry[];
+  /** Live-monitoring demo feed, newest first, capped by the store. */
+  activity: EvaluationLayerActivityEvent[];
   settings: EvaluationLayerSettings;
 }

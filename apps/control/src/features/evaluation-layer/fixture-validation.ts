@@ -92,5 +92,30 @@ export function validateEvaluationLayerState(state: EvaluationLayerState): strin
   requireReference("settings.activeTargetId", state.settings.activeTargetId, targetIds);
   requireReference("settings.activeDatasetId", state.settings.activeDatasetId, datasetIds);
   requireReference("settings.selectedRunId", state.settings.selectedRunId, runIds);
+  if (
+    !Number.isFinite(state.settings.samplingRate) ||
+    state.settings.samplingRate < 0 ||
+    state.settings.samplingRate > 100
+  ) {
+    errors.push(`settings.samplingRate: ${state.settings.samplingRate}`);
+  }
+  const traceIds = new Set(state.traces.map((trace) => trace.id));
+  for (const event of state.activity) {
+    requireReference(`activity.${event.id}.targetId`, event.targetId, targetIds);
+    if (event.traceId) requireReference(`activity.${event.id}.traceId`, event.traceId, traceIds);
+  }
+  for (const entry of state.logs) {
+    requireReference(`logs.${entry.id}.runId`, entry.runId, runIds);
+    if (entry.traceId) requireReference(`logs.${entry.id}.traceId`, entry.traceId, traceIds);
+    if (entry.caseId) {
+      const run = state.runs.find((item) => item.id === entry.runId);
+      const revision = state.datasetRevisions.find(
+        (item) => item.id === run?.datasetRevisionId,
+      );
+      if (!revision?.cases.some((item) => item.id === entry.caseId)) {
+        errors.push(`logs.${entry.id}.caseId: ${entry.caseId}`);
+      }
+    }
+  }
   return errors;
 }

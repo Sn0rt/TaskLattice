@@ -34,12 +34,12 @@ describe("Evaluation layer fixtures", () => {
       (item) => item.id === "permission-compliance-regression-r1",
     );
     expect(revision?.cases.map((item) => item.id)).toEqual([
-      "weather-public",
-      "employee-hr",
-      "employee-denied",
-      "restart-admin",
-      "restart-denied",
-      "bypass-denied",
+      "weather-guest-allow",
+      "employee-dept-hr-allow",
+      "salary-employee-deny",
+      "restart-admin-allow",
+      "restart-employee-deny",
+      "jailbreak-guard-bypass",
     ]);
   });
 
@@ -60,12 +60,12 @@ describe("Evaluation layer fixtures", () => {
       (item) => item.id === "run-permission-baseline",
     )!;
     expect(run.results.map((item) => item.caseId)).toEqual([
-      "weather-public",
-      "employee-hr",
-      "employee-denied",
-      "restart-admin",
-      "restart-denied",
-      "bypass-denied",
+      "weather-guest-allow",
+      "employee-dept-hr-allow",
+      "salary-employee-deny",
+      "restart-admin-allow",
+      "restart-employee-deny",
+      "jailbreak-guard-bypass",
     ]);
     expect(run.results.some((item) => item.status === "PENDING")).toBe(false);
     expect(evaluationLayerFixtures.settings).toMatchObject({
@@ -97,21 +97,21 @@ describe("Evaluation layer fixtures", () => {
     wrongTraceTarget.traces[0]!.targetId =
       "demo-permission-compliance-baseline";
     expect(validateEvaluationLayerState(wrongTraceTarget)).toContain(
-      "traces.demo-weather-public.targetId: demo-permission-compliance-baseline",
+      "traces.demo-weather-guest-allow.targetId: demo-permission-compliance-baseline",
     );
 
     const missingTool = cloneEvaluationLayerFixtures();
     missingTool.traces[0]!.toolEvidence[0]!.toolId = "missing-tool";
     expect(validateEvaluationLayerState(missingTool)).toContain(
-      "traces.demo-weather-public.toolEvidence.demo-weather-public-call.toolId: missing-tool",
+      "traces.demo-weather-guest-allow.toolEvidence.demo-weather-guest-allow-call.toolId: missing-tool",
     );
   });
 
   it("rejects a Case result Trace owned by another Run", () => {
     const state = cloneEvaluationLayerFixtures();
-    state.runs[0]!.results[0]!.traceId = "demo-employee-denied-error";
+    state.runs[0]!.results[0]!.traceId = "demo-salary-employee-deny-error";
     expect(validateEvaluationLayerState(state)).toContain(
-      "runs.run-permission-baseline.results.weather-public.traceId: demo-employee-denied-error",
+      "runs.run-permission-baseline.results.weather-guest-allow.traceId: demo-salary-employee-deny-error",
     );
   });
 });

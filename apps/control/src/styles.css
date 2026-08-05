@@ -762,3 +762,23 @@
     display: none;
   }
 }
+
+/* Evaluation layer live-monitoring demo: flash newly added rows. */
+@keyframes eval-live-flash {
+  0% {
+    background-color: rgb(59 130 246 / 0.28);
+  }
+  100% {
+    background-color: transparent;
+  }
+}
+
+.eval-live-flash {
+  animation: eval-live-flash 1.8s ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .eval-live-flash {
+    animation: none;
+  }
+}

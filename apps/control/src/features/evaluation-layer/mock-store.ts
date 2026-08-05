@@ -1,7 +1,11 @@
 import { cloneEvaluationLayerFixtures } from "./fixture-validation";
 import type {
+  EvaluationLayerActivityEvent,
   EvaluationLayerCase,
+  EvaluationLayerDatasetColumn,
   EvaluationLayerDatasetRevision,
+  EvaluationLayerLogEntry,
+  EvaluationLayerRun,
   EvaluationLayerSettings,
   EvaluationLayerState,
   EvaluationLayerTargetRevision,
@@ -21,6 +25,8 @@ export type CommandResult<T = undefined> =
 export interface EvaluationLayerDependencies {
   id(): string;
   now(): string;
+  /** Injectable entropy for the live-monitoring simulation. */
+  random(): number;
 }
 
 export interface CreateTargetInput {
@@ -28,16 +34,21 @@ export interface CreateTargetInput {
   description: string;
   model: string;
   adapter?: string;
+  prompt?: string;
+  tools?: EvaluationLayerTargetRevision['tools'];
+  mcpServers?: EvaluationLayerTargetRevision['mcpServers'];
+  knowledgeBases?: EvaluationLayerTargetRevision['knowledgeBases'];
 }
 
 export type TargetRevisionInput = Partial<
-  Pick<EvaluationLayerTargetRevision, "model" | "adapter" | "tools">
+  Pick<EvaluationLayerTargetRevision, 'model' | 'adapter' | 'tools' | 'prompt' | 'mcpServers' | 'knowledgeBases'>
 >;
 
 export interface CreateDatasetInput {
   targetId: string;
   name: string;
   description: string;
+  schema?: EvaluationLayerDatasetColumn[];
 }
 
 export interface DatasetDraftInput {
@@ -70,21 +81,184 @@ export interface EvaluationLayerStore {
   deleteCase(datasetId: string, caseId: string): CommandResult;
   importCases(datasetId: string, json: string): CommandResult<{ imported: number }>;
   generateCases(datasetId: string): CommandResult<{ generated: number }>;
+  completeCoverage(datasetId: string): CommandResult<{ generated: number }>;
   publishDatasetRevision(datasetId: string): CommandResult<{ revisionId: string }>;
   createRun(input: CreateRunInput): CommandResult<{ runId: string }>;
   advanceRun(runId: string): CommandResult<{ complete: boolean }>;
   submitReflection(reportId: string, suggestionIds: string[]): CommandResult<{ revisionId: string }>;
   finishReflectionWithoutChanges(reportId: string): CommandResult;
+  selectActiveTarget(targetId: string): CommandResult;
+  selectActiveDataset(datasetId: string): CommandResult;
   markTraceFailed(traceId: string, marked: boolean): CommandResult;
   testSettingsConnection(): CommandResult<{ latencyMs: number }>;
   saveSettings(input: EvaluationLayerSettings): CommandResult;
+  setEvaluatorEnabled(evaluatorId: string, enabled: boolean): CommandResult;
+  setSamplingRate(rate: number): CommandResult;
+  /** Live-monitoring demo: simulate one monitoring tick (new trace + events). */
+  tickSimulation(): CommandResult<{ traceId: string }>;
+  /** Live-monitoring demo: start/stop periodic ticks; safe to call repeatedly. */
+  startSimulation(intervalMs?: number): void;
+  stopSimulation(): void;
   resetDemo(): void;
 }
 
 const defaultDependencies: EvaluationLayerDependencies = {
   id: () => globalThis.crypto.randomUUID(),
   now: () => new Date().toISOString(),
+  random: () => Math.random(),
 };
+
+/** Deterministic per-trace sampling decision for the what-if sampling preview. */
+export function traceSampledAtRate(traceId: string, rate: number): boolean {
+  if (rate >= 100) return true;
+  if (rate <= 0) return false;
+  let hash = 0;
+  for (const char of traceId) {
+    hash = (hash * 31 + (char.codePointAt(0) ?? 0)) >>> 0;
+  }
+  return hash % 100 < rate;
+}
+
+const SIMULATED_TRACE_CAP = 80;
+const ACTIVITY_EVENT_CAP = 30;
+const LOG_ENTRY_CAP = 500;
+
+/**
+ * Simulated live traces attach to a dedicated per-target run so completed
+ * runs and their Reports stay static — only the Overview reflects the stream.
+ */
+export const LIVE_MONITORING_RUN_PREFIX = "live-monitoring-";
+
+export function isLiveMonitoringRun(runId: string): boolean {
+  return runId.startsWith(LIVE_MONITORING_RUN_PREFIX);
+}
+
+/** Structured execution-log entries for one completed case (pure mock). */
+function logEntriesForCase(
+  runId: string,
+  datasetCase: EvaluationLayerCase,
+  generated: { result: { status: string }; trace: EvaluationLayerTrace },
+  complete: boolean,
+  passedCount: number,
+  totalCount: number,
+  dependencies: EvaluationLayerDependencies,
+): EvaluationLayerLogEntry[] {
+  const now = dependencies.now();
+  const traceId = generated.trace.id;
+  const status = generated.result.status;
+  const decision = String(
+    datasetCase.expectedOutput.permission_decision ?? "ALLOW",
+  );
+  const toolName = String(datasetCase.expectedOutput.expected_tool_called ?? "");
+  const entries: EvaluationLayerLogEntry[] = [
+    {
+      id: dependencies.id(),
+      runId,
+      at: now,
+      caseId: datasetCase.id,
+      actor: "agent",
+      action: "case_started",
+      outcome: "info",
+      detail: `Case ${datasetCase.id} started`,
+    },
+  ];
+  if (toolName) {
+    entries.push({
+      id: dependencies.id(),
+      runId,
+      at: now,
+      caseId: datasetCase.id,
+      actor: "tool",
+      action: "tool_requested",
+      outcome: decision === "DENY" ? "blocked" : "allowed",
+      detail: `${toolName} requested · decision ${decision}`,
+    });
+    if (status === "ERROR") {
+      entries.push({
+        id: dependencies.id(),
+        runId,
+        at: now,
+        caseId: datasetCase.id,
+        actor: "tool",
+        action: "tool_executed",
+        outcome: "error",
+        detail: `${toolName} connection failed`,
+        traceId,
+      });
+    } else if (decision === "DENY" && status === "FAIL") {
+      entries.push({
+        id: dependencies.id(),
+        runId,
+        at: now,
+        caseId: datasetCase.id,
+        actor: "tool",
+        action: "tool_executed",
+        outcome: "violation",
+        detail: `${toolName} EXECUTED despite DENY decision`,
+        traceId,
+      });
+    } else if (decision === "DENY") {
+      entries.push({
+        id: dependencies.id(),
+        runId,
+        at: now,
+        caseId: datasetCase.id,
+        actor: "tool",
+        action: "tool_blocked",
+        outcome: "blocked",
+        detail: `${toolName} blocked before execution`,
+      });
+    } else {
+      entries.push({
+        id: dependencies.id(),
+        runId,
+        at: now,
+        caseId: datasetCase.id,
+        actor: "tool",
+        action: "tool_executed",
+        outcome: "allowed",
+        detail: `${toolName} executed`,
+        traceId,
+      });
+    }
+  }
+  entries.push({
+    id: dependencies.id(),
+    runId,
+    at: now,
+    caseId: datasetCase.id,
+    actor: "judge",
+    action: "judge_scored",
+    outcome: status === "FAIL" ? "violation" : "info",
+    detail:
+      Object.entries(generated.trace.judge?.scores ?? {})
+        .map(([name, score]) => `${name} ${score}/5`)
+        .join(" · ") || "not scored",
+  });
+  entries.push({
+    id: dependencies.id(),
+    runId,
+    at: now,
+    caseId: datasetCase.id,
+    actor: "system",
+    action: "case_completed",
+    outcome: status === "ERROR" ? "error" : status === "FAIL" ? "violation" : "info",
+    detail: `${datasetCase.id} ${status}`,
+    traceId,
+  });
+  if (complete) {
+    entries.push({
+      id: dependencies.id(),
+      runId,
+      at: now,
+      actor: "system",
+      action: "run_completed",
+      outcome: "info",
+      detail: `Evaluation completed · ${passedCount}/${totalCount} passed`,
+    });
+  }
+  return entries;
+}
 
 function fail<T = never>(
   error: string,
@@ -126,8 +300,8 @@ function resultForCase(
   const traceId = dependencies.id();
   const now = dependencies.now();
   const response = failed
-    ? "Unsafe Tool execution detected after a denied permission decision."
-    : "Expected permission and Tool behavior observed.";
+    ? "Guardrail bypass (fail-open): DENY was decided, but the tool executed and leaked data."
+    : "Permission decision enforced: tool behavior matched expectations.";
   const trace: EvaluationLayerTrace = {
     id: traceId,
     runId,
@@ -143,7 +317,7 @@ function resultForCase(
       execution_correctness: 1,
     },
     deterministicReasons: failed
-      ? { permission_compliance: "GUARD_BYPASSED: denied Tool request executed." }
+      ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
       : {},
     toolEvidence: tool
       ? [
@@ -159,6 +333,8 @@ function resultForCase(
             executedArguments: structuredClone(datasetCase.input),
             output: { result: response },
             error: null,
+            traceId,
+            observationId: null,
             startedAt: now,
             endedAt: now,
             latencyMs: failed ? 120 : 80,
@@ -175,9 +351,40 @@ function resultForCase(
       },
       reasons: { correctness: response },
       summary: response,
+      traceId: `${traceId}-judge`,
+      observationId: null,
+      usageCost: {
+        category: 'judge',
+        model: state.settings.model,
+        inputTokens: 120,
+        outputTokens: 40,
+        cachedTokens: 0,
+        reasoningTokens: 0,
+        costUsd: 0.001,
+      },
       model: state.settings.model,
       promptVersion: "demo-v1",
     },
+    usageCosts: [
+      {
+        category: 'agent',
+        model: revision?.model ?? 'recorded-demo-agent',
+        inputTokens: 180,
+        outputTokens: 60,
+        cachedTokens: 0,
+        reasoningTokens: 0,
+        costUsd: 0.002,
+      },
+      {
+        category: 'judge',
+        model: state.settings.model,
+        inputTokens: 120,
+        outputTokens: 40,
+        cachedTokens: 0,
+        reasoningTokens: 0,
+        costUsd: 0.001,
+      },
+    ],
     spans: [
       {
         id: dependencies.id(),
@@ -188,6 +395,12 @@ function resultForCase(
         endedAt: now,
         input: structuredClone(datasetCase.input),
         output: { response },
+        metadata: { runId, caseId: datasetCase.id },
+        observationType: 'agent',
+        level: 'DEFAULT',
+        ...(revision?.model ? { model: revision.model } : {}),
+        usageDetails: { input_tokens: 180, output_tokens: 60 },
+        costDetails: { total: 0.002 },
       },
     ],
     markedFailed: failed,
@@ -203,6 +416,66 @@ function resultForCase(
   };
 }
 
+/** Builds one simulated live trace for a target, reusing its latest run context. */
+function simulatedTrace(
+  state: EvaluationLayerState,
+  targetId: string,
+  liveRun: EvaluationLayerRun,
+  dependencies: EvaluationLayerDependencies,
+): EvaluationLayerTrace | undefined {
+  const datasetRevision = state.datasetRevisions.find(
+    (item) => item.id === liveRun.datasetRevisionId,
+  );
+  const cases = datasetRevision?.cases ?? [];
+  const caseId = cases.length
+    ? cases[Math.floor(dependencies.random() * cases.length)]!.id
+    : "live-case";
+  const roll = dependencies.random();
+  const status = roll < 0.72 ? "PASS" : roll < 0.88 ? "FAIL" : "ERROR";
+  const traceId = dependencies.id();
+  const now = dependencies.now();
+  const response =
+    status === "PASS"
+      ? "Permission decision enforced: tool behavior matched expectations."
+      : status === "FAIL"
+        ? "Guardrail bypass (fail-open): DENY was decided, but the tool executed and leaked data."
+        : "Tool connection failed before a permission decision was recorded.";
+  return {
+    id: traceId,
+    runId: liveRun.id,
+    caseId,
+    targetId,
+    status,
+    startedAt: now,
+    latencyMs: Math.round(120 + dependencies.random() * 780),
+    costUsd: Number((0.001 + dependencies.random() * 0.009).toFixed(4)),
+    response,
+    deterministicScores: {
+      permission_compliance: status === "FAIL" ? 0 : 1,
+      execution_correctness: status === "ERROR" ? 0 : 1,
+    },
+    deterministicReasons:
+      status === "FAIL"
+        ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
+        : status === "ERROR"
+          ? { execution_correctness: "Simulated Tool connection failure." }
+          : {},
+    toolEvidence: [],
+    spans: [
+      {
+        id: dependencies.id(),
+        name: caseId,
+        kind: "TRACE",
+        status: status === "ERROR" ? "ERROR" : "OK",
+        startedAt: now,
+        endedAt: now,
+        output: { response },
+      },
+    ],
+    markedFailed: status !== "PASS",
+  };
+}
+
 export function createEvaluationLayerStore(
   initialState: EvaluationLayerState,
   overrides: Partial<EvaluationLayerDependencies> = {},
@@ -211,6 +484,7 @@ export function createEvaluationLayerStore(
   const baseline = structuredClone(initialState);
   let state = structuredClone(initialState);
   const listeners = new Set<() => void>();
+  let simulationTimer: ReturnType<typeof setInterval> | undefined;
 
   const replaceState = (
     updater: (snapshot: EvaluationLayerState) => EvaluationLayerState,
@@ -231,8 +505,26 @@ export function createEvaluationLayerStore(
     datasetId: string,
     updater: (cases: EvaluationLayerCase[]) => EvaluationLayerCase[],
   ): boolean => {
-    const draft = draftFor(datasetId);
-    if (!draft) return false;
+    let draft = draftFor(datasetId);
+    if (!draft) {
+      const dataset = state.datasets.find((item) => item.id === datasetId);
+      const current = dataset
+        ? state.datasetRevisions.find((item) => item.id === dataset.currentRevisionId)
+        : undefined;
+      if (!dataset || !current) return false;
+      draft = {
+        ...structuredClone(current),
+        id: dependencies.id(),
+        revision: latestRevisionNumber(state.datasetRevisions.filter((item) => item.datasetId === datasetId)) + 1,
+        status: 'DRAFT',
+        createdAt: dependencies.now(),
+      };
+      const createdDraft = draft;
+      replaceState((snapshot) => ({
+        ...snapshot,
+        datasetRevisions: [...snapshot.datasetRevisions, createdDraft],
+      }));
+    }
     replaceState((snapshot) => ({
       ...snapshot,
       datasetRevisions: snapshot.datasetRevisions.map((revision) =>
@@ -268,6 +560,8 @@ export function createEvaluationLayerStore(
             name,
             description: input.description.trim(),
             currentRevisionId: revisionId,
+            liveStatus: "ONLINE",
+            lastActivityAt: now,
             createdAt: now,
           },
         ],
@@ -279,7 +573,10 @@ export function createEvaluationLayerStore(
             revision: 1,
             model: input.model,
             adapter: input.adapter ?? "permission-compliance",
-            tools: [],
+            tools: structuredClone(input.tools ?? []),
+            prompt: input.prompt?.trim() ?? "",
+            mcpServers: structuredClone(input.mcpServers ?? []),
+            knowledgeBases: structuredClone(input.knowledgeBases ?? []),
             createdAt: now,
           },
         ],
@@ -334,6 +631,7 @@ export function createEvaluationLayerStore(
             description: input.description.trim(),
             currentRevisionId: revisionId,
             createdAt: now,
+            schema: structuredClone(input.schema ?? []),
           },
         ],
         datasetRevisions: [
@@ -405,7 +703,12 @@ export function createEvaluationLayerStore(
         {
           ...structuredClone(source),
           id: duplicateId,
-          input: { ...structuredClone(source.input), demo_copy: true },
+          input: (() => {
+            const input = structuredClone(source.input);
+            const first = Object.keys(input)[0];
+            if (first && typeof input[first] === 'string') input[first] = `${input[first]} (copy)`;
+            return input;
+          })(),
         },
       ]);
       return { ok: true, value: { caseId: duplicateId } };
@@ -426,6 +729,18 @@ export function createEvaluationLayerStore(
         parsed = JSON.parse(json);
       } catch {
         return fail("Import must be valid JSON.", "INVALID_INPUT");
+      }
+      if (Array.isArray(parsed)) {
+        parsed = parsed.map((item) => {
+          if (!item || typeof item !== 'object') return item;
+          const record = item as Record<string, unknown>;
+          return {
+            ...record,
+            expectedOutput: record.expectedOutput ?? record.expected_output,
+            source: record.source ?? 'json',
+            tags: Array.isArray(record.tags) ? record.tags : [],
+          };
+        });
       }
       if (!Array.isArray(parsed) || !parsed.every(isCaseInput)) {
         return fail("Import must be an array of cases.", "INVALID_INPUT");
@@ -464,6 +779,39 @@ export function createEvaluationLayerStore(
       ];
       if (!updateDraftCases(datasetId, (cases) => [...cases, ...generated])) {
         return fail("Test Case draft not found.", "NOT_FOUND");
+      }
+      return { ok: true, value: { generated: generated.length } };
+    },
+    completeCoverage(datasetId) {
+      const dataset = state.datasets.find((item) => item.id === datasetId);
+      const draft = draftFor(datasetId);
+      const target = dataset
+        ? state.targets.find((item) => item.id === dataset.targetId)
+        : undefined;
+      const revision = target
+        ? state.targetRevisions.find((item) => item.id === target.currentRevisionId)
+        : undefined;
+      if (!dataset || !draft || !revision) {
+        return fail('Test Case draft not found.', 'NOT_FOUND');
+      }
+      const covered = new Set(
+        draft.cases.map((item) => String(item.expectedOutput.expected_tool_called ?? '')),
+      );
+      const generated = revision.tools
+        .filter((tool) => tool.enabled && !covered.has(tool.name))
+        .map((tool) => ({
+          id: dependencies.id(),
+          input: { query: `Verify ${tool.name}: Happy path` },
+          expectedOutput: {
+            expected_tool_called: tool.name,
+            expected_action: `Call ${tool.name} for Happy path`,
+          },
+          tags: ['coverage'],
+          source: 'coverage',
+          metadata: { tool_id: tool.id, requirement: 'Happy path' },
+        }));
+      if (generated.length) {
+        updateDraftCases(datasetId, (cases) => [...cases, ...generated]);
       }
       return { ok: true, value: { generated: generated.length } };
     },
@@ -510,6 +858,18 @@ export function createEvaluationLayerStore(
       const now = dependencies.now();
       replaceState((snapshot) => ({
         ...snapshot,
+        logs: [
+          ...snapshot.logs,
+          {
+            id: dependencies.id(),
+            runId,
+            at: now,
+            actor: "system" as const,
+            action: "run_started" as const,
+            outcome: "info" as const,
+            detail: `Evaluation started · ${datasetRevision.cases.length} cases queued`,
+          },
+        ].slice(-LOG_ENTRY_CAP),
         runs: [
           ...snapshot.runs,
           {
@@ -555,6 +915,15 @@ export function createEvaluationLayerStore(
       const hasFailure = results.some(
         (result) => result.status === "FAIL" || result.status === "ERROR",
       );
+      const logEntries = logEntriesForCase(
+        runId,
+        datasetCase,
+        generated,
+        complete,
+        results.filter((result) => result.status === "PASS").length,
+        results.length,
+        dependencies,
+      );
       const existingReport = state.reports.find((report) => report.runId === runId);
       const reportId = existingReport?.id ?? (complete ? dependencies.id() : undefined);
       const report =
@@ -584,6 +953,7 @@ export function createEvaluationLayerStore(
       replaceState((snapshot) => ({
         ...snapshot,
         traces: [...snapshot.traces, generated.trace],
+        logs: [...snapshot.logs, ...logEntries].slice(-LOG_ENTRY_CAP),
         reports: report ? [...snapshot.reports, report] : snapshot.reports,
         reflections: reflection
           ? [...snapshot.reflections, reflection]
@@ -637,6 +1007,29 @@ export function createEvaluationLayerStore(
       }));
       return { ok: true, value: undefined };
     },
+    selectActiveTarget(targetId) {
+      if (!state.targets.some((target) => target.id === targetId)) {
+        return fail('Agent not found.', 'NOT_FOUND');
+      }
+      replaceState((snapshot) => ({
+        ...snapshot,
+        settings: { ...snapshot.settings, activeTargetId: targetId },
+      }));
+      return { ok: true, value: undefined };
+    },
+    selectActiveDataset(datasetId) {
+      const dataset = state.datasets.find((item) => item.id === datasetId);
+      if (!dataset) return fail('Test Case not found.', 'NOT_FOUND');
+      replaceState((snapshot) => ({
+        ...snapshot,
+        settings: {
+          ...snapshot.settings,
+          activeTargetId: dataset.targetId,
+          activeDatasetId: datasetId,
+        },
+      }));
+      return { ok: true, value: undefined };
+    },
     markTraceFailed(traceId, marked) {
       if (!state.traces.some((trace) => trace.id === traceId)) {
         return fail("Trace not found.", "NOT_FOUND");
@@ -667,6 +1060,117 @@ export function createEvaluationLayerStore(
         settings: structuredClone(input),
       }));
       return { ok: true, value: undefined };
+    },
+    setEvaluatorEnabled(evaluatorId, enabled) {
+      if (!state.evaluators.some((item) => item.id === evaluatorId)) {
+        return fail("Evaluator not found.", "NOT_FOUND");
+      }
+      replaceState((snapshot) => ({
+        ...snapshot,
+        evaluators: snapshot.evaluators.map((item) =>
+          item.id === evaluatorId ? { ...item, enabled } : item,
+        ),
+      }));
+      return { ok: true, value: undefined };
+    },
+    setSamplingRate(rate) {
+      if (!Number.isFinite(rate)) {
+        return fail("Sampling rate must be a number between 0 and 100.", "INVALID_INPUT");
+      }
+      const clamped = Math.min(100, Math.max(0, Math.round(rate)));
+      replaceState((snapshot) => ({
+        ...snapshot,
+        settings: { ...snapshot.settings, samplingRate: clamped },
+      }));
+      return { ok: true, value: undefined };
+    },
+    tickSimulation() {
+      const online = state.targets.filter(
+        (target) => target.liveStatus !== "OFFLINE",
+      );
+      if (!online.length) {
+        return fail("No online Agent available for simulation.", "UNAVAILABLE");
+      }
+      const target =
+        online[Math.floor(dependencies.random() * online.length)]!;
+      // Reuse the latest real run's context (dataset revision) as the template,
+      // but attach simulated traces to a dedicated live run per target so
+      // completed runs and their Reports stay static.
+      const template = state.runs
+        .filter(
+          (run) => run.targetId === target.id && !isLiveMonitoringRun(run.id),
+        )
+        .sort((a, b) => b.startedAt.localeCompare(a.startedAt))[0];
+      if (!template) {
+        return fail("Agent has no Evaluation history to simulate from.", "UNAVAILABLE");
+      }
+      const now = dependencies.now();
+      const liveRunId = LIVE_MONITORING_RUN_PREFIX + target.id;
+      const existingLive = state.runs.some((run) => run.id === liveRunId);
+      const liveRun: EvaluationLayerRun = {
+        id: liveRunId,
+        targetId: target.id,
+        targetRevisionId: template.targetRevisionId,
+        datasetId: template.datasetId,
+        datasetRevisionId: template.datasetRevisionId,
+        evaluatorIds: [],
+        status: "RUNNING",
+        startedAt: now,
+        results: [],
+      };
+      const trace = simulatedTrace(state, target.id, liveRun, dependencies);
+      if (!trace) {
+        return fail("Agent has no Evaluation history to simulate from.", "UNAVAILABLE");
+      }
+      const events: EvaluationLayerActivityEvent[] = [
+        {
+          id: dependencies.id(),
+          at: now,
+          targetId: target.id,
+          kind: "TRACE",
+          message: `${target.name} captured trace ${trace.id.slice(0, 8)}… · ${trace.status}`,
+          traceId: trace.id,
+          status: trace.status,
+        },
+      ];
+      let liveStatus = target.liveStatus;
+      if (dependencies.random() < 0.15) {
+        const pool = ["ONLINE", "ONLINE", "DEGRADED"] as const;
+        liveStatus = pool[Math.floor(dependencies.random() * pool.length)]!;
+        if (liveStatus !== target.liveStatus) {
+          events.unshift({
+            id: dependencies.id(),
+            at: now,
+            targetId: target.id,
+            kind: "STATUS",
+            message: `${target.name} is now ${liveStatus.toLowerCase()}`,
+            status: liveStatus,
+          });
+        }
+      }
+      replaceState((snapshot) => ({
+        ...snapshot,
+        runs: existingLive ? snapshot.runs : [...snapshot.runs, liveRun],
+        traces: [trace, ...snapshot.traces].slice(0, SIMULATED_TRACE_CAP),
+        targets: snapshot.targets.map((item) =>
+          item.id === target.id
+            ? { ...item, liveStatus, lastActivityAt: now }
+            : item,
+        ),
+        activity: [...events, ...snapshot.activity].slice(0, ACTIVITY_EVENT_CAP),
+      }));
+      return { ok: true, value: { traceId: trace.id } };
+    },
+    startSimulation(intervalMs = 4000) {
+      if (simulationTimer !== undefined) return;
+      simulationTimer = setInterval(() => {
+        store.tickSimulation();
+      }, intervalMs);
+    },
+    stopSimulation() {
+      if (simulationTimer === undefined) return;
+      clearInterval(simulationTimer);
+      simulationTimer = undefined;
     },
     resetDemo() {
       state = structuredClone(baseline);

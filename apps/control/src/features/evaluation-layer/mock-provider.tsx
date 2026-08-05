@@ -1,5 +1,6 @@
 import {
   createContext,
+  useEffect,
   type ReactNode,
   useContext,
   useMemo,
@@ -27,6 +28,10 @@ export function EvaluationLayerProvider({
     () => createEvaluationLayerStore(cloneEvaluationLayerFixtures()),
     [projectId],
   );
+  useEffect(() => {
+    store.startSimulation(4000);
+    return () => store.stopSimulation();
+  }, [store]);
   return (
     <EvaluationLayerStoreContext value={store}>
       {children}

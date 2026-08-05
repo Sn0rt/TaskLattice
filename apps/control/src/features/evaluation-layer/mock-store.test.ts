@@ -1,6 +1,9 @@
-import { describe, expect, it } from "vitest";
-import { cloneEvaluationLayerFixtures } from "./fixture-validation";
-import { createEvaluationLayerStore } from "./mock-store";
+import { describe, expect, it, vi } from "vitest";
+import {
+  cloneEvaluationLayerFixtures,
+  validateEvaluationLayerState,
+} from "./fixture-validation";
+import { createEvaluationLayerStore, isLiveMonitoringRun } from "./mock-store";
 
 describe("EvaluationLayerStore", () => {
   it("publishes a Dataset revision without mutating the draft source", () => {
@@ -38,5 +41,147 @@ describe("EvaluationLayerStore", () => {
 
     expect(first.getState()).toEqual(cloneEvaluationLayerFixtures());
     expect(second.getState()).toEqual(cloneEvaluationLayerFixtures());
+  });
+
+  it('shares the selected Target across Evaluation pages', () => {
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures());
+    const targetId = store.getState().targets[1]!.id;
+
+    expect(store.selectActiveTarget(targetId)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(store.getState().settings.activeTargetId).toBe(targetId);
+  });
+
+  it('preserves the legacy Target configuration scope in mock revisions', () => {
+    let sequence = 0;
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures(), {
+      id: () => `legacy-target-${sequence++}`,
+      now: () => '2026-08-05T10:00:00.000Z',
+    });
+    const tool = store.getState().targetRevisions[1]!.tools[0]!;
+
+    const result = store.createTarget({
+      name: 'Legacy-compatible target',
+      description: 'Model, prompt and resources',
+      model: 'gpt-5-mini',
+      prompt: 'Follow the permission policy.',
+      tools: [tool],
+      mcpServers: [{ id: 'mcp-1', name: 'Operations MCP' }],
+      knowledgeBases: [{ id: 'kb-1', name: 'Policy KB' }],
+    });
+
+    expect(result.ok).toBe(true);
+    const revision = store.getState().targetRevisions.at(-1)!;
+    expect(revision.prompt).toBe('Follow the permission policy.');
+    expect(revision.tools).toHaveLength(1);
+    expect(revision.mcpServers?.[0]?.name).toBe('Operations MCP');
+    expect(revision.knowledgeBases?.[0]?.name).toBe('Policy KB');
+  });
+
+  it('stores Dataset schema, completes Tool coverage and shares Dataset context', () => {
+    let sequence = 0;
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures(), {
+      id: () => `legacy-dataset-${sequence++}`,
+      now: () => '2026-08-05T10:00:00.000Z',
+    });
+    const targetId = store.getState().targets[0]!.id;
+    const created = store.createDataset({
+      targetId,
+      name: 'Coverage draft',
+      description: '',
+      schema: [{ name: 'query', kind: 'input', dataType: 'string', required: true, description: 'Query' }],
+    });
+    if (!created.ok) throw new Error(created.error);
+
+    expect(store.selectActiveDataset(created.value.datasetId)).toEqual({ ok: true, value: undefined });
+    expect(store.completeCoverage(created.value.datasetId)).toEqual({ ok: true, value: { generated: 3 } });
+    expect(store.getState().settings.activeTargetId).toBe(targetId);
+    expect(store.getState().settings.activeDatasetId).toBe(created.value.datasetId);
+    expect(store.getState().datasets.at(-1)?.schema?.[0]?.name).toBe('query');
+    expect(store.getState().datasetRevisions.at(-1)?.cases).toHaveLength(3);
+  });
+
+  it('clamps and validates the sampling rate', () => {
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures());
+
+    expect(store.setSamplingRate(150)).toEqual({ ok: true, value: undefined });
+    expect(store.getState().settings.samplingRate).toBe(100);
+    expect(store.setSamplingRate(-5)).toEqual({ ok: true, value: undefined });
+    expect(store.getState().settings.samplingRate).toBe(0);
+    expect(store.setSamplingRate(Number.NaN).ok).toBe(false);
+  });
+
+  it('toggles evaluators used by the next Evaluation', () => {
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures());
+    const evaluator = store.getState().evaluators[0]!;
+
+    expect(store.setEvaluatorEnabled(evaluator.id, false)).toEqual({
+      ok: true,
+      value: undefined,
+    });
+    expect(store.getState().evaluators[0]!.enabled).toBe(false);
+    expect(store.setEvaluatorEnabled('missing', true).ok).toBe(false);
+  });
+
+  it('ticks the live simulation with a trace, activity event, and valid state', () => {
+    let sequence = 0;
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures(), {
+      id: () => `sim-${sequence++}`,
+      now: () => '2026-08-05T10:00:00.000Z',
+      random: () => 0.1,
+    });
+    const before = store.getState().traces.length;
+
+    const result = store.tickSimulation();
+
+    expect(result.ok).toBe(true);
+    const state = store.getState();
+    expect(state.traces.length).toBe(before + 1);
+    expect(state.traces[0]!.startedAt).toBe('2026-08-05T10:00:00.000Z');
+    expect(state.activity.length).toBeGreaterThan(0);
+    expect(state.activity[0]!.traceId).toBe(state.traces[0]!.id);
+    expect(state.targets.find((t) => t.id === state.traces[0]!.targetId)?.lastActivityAt).toBe(
+      '2026-08-05T10:00:00.000Z',
+    );
+    // Simulated traces attach to a dedicated live-monitoring run, never to a
+    // completed evaluation run, so generated Reports stay static.
+    const liveTrace = state.traces[0]!;
+    expect(isLiveMonitoringRun(liveTrace.runId)).toBe(true);
+    const liveRun = state.runs.find((run) => run.id === liveTrace.runId)!;
+    expect(liveRun.targetId).toBe(liveTrace.targetId);
+    expect(liveRun.status).toBe("RUNNING");
+    expect(
+      state.traces.filter((trace) => trace.runId === "run-permission-baseline"),
+    ).toHaveLength(2);
+    // A second tick reuses the same live run instead of creating more runs.
+    const runCount = state.runs.length;
+    store.tickSimulation();
+    expect(store.getState().runs).toHaveLength(runCount);
+    // The simulated trace must keep referential integrity with runs/datasets.
+    expect(validateEvaluationLayerState(state)).toEqual([]);
+  });
+
+  it('starts and stops the simulation timer idempotently', () => {
+    vi.useFakeTimers();
+    try {
+      let sequence = 0;
+      const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures(), {
+        id: () => `timer-${sequence++}`,
+        random: () => 0.1,
+      });
+      const before = store.getState().traces.length;
+      store.startSimulation(10);
+      store.startSimulation(10); // second start is a no-op
+      vi.advanceTimersByTime(25);
+      expect(store.getState().traces.length).toBe(before + 2);
+      store.stopSimulation();
+      store.stopSimulation(); // second stop is a no-op
+      vi.advanceTimersByTime(50);
+      expect(store.getState().traces.length).toBe(before + 2);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });

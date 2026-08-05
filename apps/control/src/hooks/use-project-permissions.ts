@@ -1,3 +1,4 @@
+import { useDemoRole } from "@/hooks/use-demo-role";
 import { useProject } from "@/hooks/use-project";
 import type {
   ProjectPermissions,
@@ -6,21 +7,33 @@ import type {
 
 export function permissionsForRole(role: ProjectRole): ProjectPermissions {
   const isManager = role === "admin";
+  const isCompliance = role === "compliance";
   return {
-    canCreateAgents: true,
+    canCreateAgents: !isCompliance,
     canCreateProject: isManager,
     canDeleteProject: role === "admin",
     canInviteMembers: isManager,
     canManageResources: isManager,
     canManageProject: isManager,
-    canViewAuditLogs: isManager,
+    // Compliance is a read-only auditor: traceability requires audit-log access.
+    canViewAuditLogs: isManager || isCompliance,
     canViewResources: true,
   };
+}
+
+/**
+ * Resolves the role used for all permission checks. A frontend-only demo
+ * override ("view as") wins over the real project role so access control can
+ * be demonstrated without backend support.
+ */
+export function useEffectiveProjectRole(role?: ProjectRole): ProjectRole {
+  const { roleOverride } = useDemoRole();
+  const { currentProject } = useProject();
+  return roleOverride ?? role ?? currentProject?.role ?? "member";
 }
 
 export function useProjectPermissions(
   role?: ProjectRole,
 ): ProjectPermissions {
-  const { currentProject } = useProject();
-  return permissionsForRole(role ?? currentProject?.role ?? "member");
+  return permissionsForRole(useEffectiveProjectRole(role));
 }
