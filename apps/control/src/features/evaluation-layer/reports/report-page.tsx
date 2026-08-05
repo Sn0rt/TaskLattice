@@ -142,6 +142,59 @@ export function EvaluationReportDetail({ reportId }: { reportId: string }) {
           <TabsTrigger value="audit">Audit log</TabsTrigger>
         </TabsList>
         <TabsContent value="overview" className="space-y-6">
+      <EvaluationSection
+        title="Reflection"
+        description="Select evidence-backed improvements and create one immutable Agent revision."
+      >
+        {reflections.length ? (
+          <div className="grid gap-3">
+            {reflections.map((reflection) => (
+              <label
+                key={reflection.id}
+                className="flex items-start gap-3 rounded-md border p-4"
+              >
+                <input
+                  type="checkbox"
+                  className="mt-1"
+                  disabled={reflection.status !== "OPEN"}
+                  checked={selected.includes(reflection.id)}
+                  onChange={(event) =>
+                    setSelected((current) =>
+                      event.target.checked
+                        ? [...current, reflection.id]
+                        : current.filter((id) => id !== reflection.id),
+                    )
+                  }
+                />
+                <span>
+                  <span className="font-medium">{reflection.suggestion}</span>
+                  <span className="mt-1 block text-xs text-muted-foreground">
+                    Status: {reflection.status}
+                  </span>
+                </span>
+              </label>
+            ))}
+            <div className="flex flex-wrap justify-end gap-2">
+              <Button
+                variant="outline"
+                onClick={() => store.finishReflectionWithoutChanges(report.id)}
+              >
+                Finish without changes
+              </Button>
+              <Button
+                disabled={!selected.length}
+                onClick={() => store.submitReflection(report.id, selected)}
+              >
+                Apply selected changes
+              </Button>
+            </div>
+          </div>
+        ) : (
+          <p className="text-sm text-muted-foreground">
+            No Reflection suggestions are available.
+          </p>
+        )}
+      </EvaluationSection>
       <EvaluationSection title="Summary">
         <div className="grid gap-4 md:grid-cols-4">
           <EvaluationMetric label="Pass rate" value={formatPercent(passRate)} />
@@ -365,59 +418,6 @@ export function EvaluationReportDetail({ reportId }: { reportId: string }) {
             ["Currency", "USD"],
           ]}
         />
-      </EvaluationSection>
-      <EvaluationSection
-        title="Reflection"
-        description="Select evidence-backed improvements and create one immutable Agent revision."
-      >
-        {reflections.length ? (
-          <div className="grid gap-3">
-            {reflections.map((reflection) => (
-              <label
-                key={reflection.id}
-                className="flex items-start gap-3 rounded-md border p-4"
-              >
-                <input
-                  type="checkbox"
-                  className="mt-1"
-                  disabled={reflection.status !== "OPEN"}
-                  checked={selected.includes(reflection.id)}
-                  onChange={(event) =>
-                    setSelected((current) =>
-                      event.target.checked
-                        ? [...current, reflection.id]
-                        : current.filter((id) => id !== reflection.id),
-                    )
-                  }
-                />
-                <span>
-                  <span className="font-medium">{reflection.suggestion}</span>
-                  <span className="mt-1 block text-xs text-muted-foreground">
-                    Status: {reflection.status}
-                  </span>
-                </span>
-              </label>
-            ))}
-            <div className="flex flex-wrap justify-end gap-2">
-              <Button
-                variant="outline"
-                onClick={() => store.finishReflectionWithoutChanges(report.id)}
-              >
-                Finish without changes
-              </Button>
-              <Button
-                disabled={!selected.length}
-                onClick={() => store.submitReflection(report.id, selected)}
-              >
-                Apply selected changes
-              </Button>
-            </div>
-          </div>
-        ) : (
-          <p className="text-sm text-muted-foreground">
-            No Reflection suggestions are available.
-          </p>
-        )}
       </EvaluationSection>
         </TabsContent>
         <TabsContent value="permission" className="space-y-6">

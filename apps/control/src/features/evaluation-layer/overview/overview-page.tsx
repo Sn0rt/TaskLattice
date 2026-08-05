@@ -4,6 +4,11 @@ import { ChartNoAxesCombined } from "lucide-react";
 import { EmptyState } from "@/components/shared/empty-state";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { useCurrentProjectId } from "@/hooks/use-project";
@@ -13,13 +18,19 @@ import {
   useEvaluationLayerStore,
 } from "../mock-provider";
 import { traceSampledAtRate } from "../mock-store";
+import type {
+  EvaluationLayerEvaluator,
+  EvaluationLayerTrace,
+} from "../model";
 import { EvaluationLayerStatusBadge } from "../shared/evaluation-status";
+import { traceScoreJson } from "../traces/trace-view-model";
 import {
   EvaluationSection,
   EvaluationTable,
   formatCost,
   formatPercent,
   formatRelativeTime,
+  JsonPreview,
   useFlashingKeys,
 } from "../shared/evaluation-ui";
 
@@ -403,6 +414,7 @@ export function EvaluationOverviewPage() {
             <th>Latency</th>
             <th>Cost</th>
             <th>Sampled</th>
+            <th className="w-[150px]">Score</th>
             <th>Started</th>
             <th />
           </tr>
@@ -450,6 +462,9 @@ export function EvaluationOverviewPage() {
                     </span>
                   )}
                 </td>
+                <td className="max-w-[150px]">
+                  <TraceScoreCell trace={trace} evaluators={state.evaluators} />
+                </td>
                 <td className="whitespace-nowrap text-xs text-muted-foreground">
                   {formatRelativeTime(trace.startedAt)}
                 </td>
@@ -468,7 +483,7 @@ export function EvaluationOverviewPage() {
           })}
           {!traces.length ? (
             <tr>
-              <td colSpan={10} className="text-center text-muted-foreground">
+              <td colSpan={11} className="text-center text-muted-foreground">
                 No traces match the current filters.
               </td>
             </tr>
@@ -476,5 +491,41 @@ export function EvaluationOverviewPage() {
         </tbody>
       </EvaluationTable>
     </div>
+  );
+}
+
+/**
+ * Score column cell: a one-line truncated JSON preview that never stretches
+ * the table; the full per-evaluator JSON opens in a bounded popover.
+ */
+function TraceScoreCell({
+  trace,
+  evaluators,
+}: {
+  trace: EvaluationLayerTrace;
+  evaluators: EvaluationLayerEvaluator[];
+}) {
+  const json = traceScoreJson(trace, evaluators);
+  if (!json) {
+    return <span className="text-xs text-muted-foreground">—</span>;
+  }
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          title="View evaluator scores"
+          className="block w-full max-w-[150px] truncate whitespace-nowrap text-left font-mono text-xs hover:underline"
+        >
+          {JSON.stringify(json)}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        className="max-h-80 w-auto max-w-sm overflow-auto p-3"
+      >
+        <JsonPreview value={json} />
+      </PopoverContent>
+    </Popover>
   );
 }

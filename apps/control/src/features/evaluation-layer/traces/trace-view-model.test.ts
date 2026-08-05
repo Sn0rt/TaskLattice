@@ -8,6 +8,7 @@ import {
   spanRows,
   traceCost,
   traceLatency,
+  traceScoreJson,
 } from './trace-view-model';
 
 describe('legacy-aligned Trace view model', () => {
@@ -50,5 +51,29 @@ describe('legacy-aligned Trace view model', () => {
       verification_required: false,
       latency_ms: 80,
     });
+  });
+
+  it('merges every scoring evaluator into one JSON keyed by evaluator name', () => {
+    const fixtures = cloneEvaluationLayerFixtures();
+    const json = traceScoreJson(passing, fixtures.evaluators);
+    expect(json).toEqual({
+      'Permission compliance': passing.deterministicScores,
+      'Recorded demo judge': passing.judge!.scores,
+    });
+  });
+
+  it('includes only the evaluators that actually scored the trace', () => {
+    const fixtures = cloneEvaluationLayerFixtures();
+    const { judge: _judge, ...withoutJudge } = passing;
+    expect(traceScoreJson(withoutJudge, fixtures.evaluators)).toEqual({
+      'Permission compliance': passing.deterministicScores,
+    });
+  });
+
+  it('returns null when no evaluator scored the trace', () => {
+    const fixtures = cloneEvaluationLayerFixtures();
+    const { judge: _judge, ...rest } = passing;
+    const unscored = { ...rest, deterministicScores: {} };
+    expect(traceScoreJson(unscored, fixtures.evaluators)).toBeNull();
   });
 });

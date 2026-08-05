@@ -1,4 +1,5 @@
 import type {
+  EvaluationLayerEvaluator,
   EvaluationLayerSpan,
   EvaluationLayerToolEvidence,
   EvaluationLayerTrace,
@@ -43,6 +44,29 @@ export function judgeAverage(trace: EvaluationLayerTrace) {
   return scores.length
     ? scores.reduce((sum, score) => sum + score, 0) / scores.length
     : 0;
+}
+
+/**
+ * Per-evaluator scores for one trace, keyed by evaluator name, ready for JSON
+ * display. An evaluator appears only if it actually scored the trace (a
+ * Built-in evaluator needs deterministic scores, a Langfuse evaluator needs a
+ * judge observation). Returns null when nothing scored the trace.
+ */
+export function traceScoreJson(
+  trace: EvaluationLayerTrace,
+  evaluators: EvaluationLayerEvaluator[],
+): Record<string, Record<string, number>> | null {
+  const scores: Record<string, Record<string, number>> = {};
+  for (const evaluator of evaluators) {
+    if (evaluator.provider === 'BUILT_IN') {
+      if (Object.keys(trace.deterministicScores).length) {
+        scores[evaluator.name] = { ...trace.deterministicScores };
+      }
+    } else if (trace.judge) {
+      scores[evaluator.name] = { ...trace.judge.scores };
+    }
+  }
+  return Object.keys(scores).length ? scores : null;
 }
 
 export function spanObservationType(span: EvaluationLayerSpan) {
