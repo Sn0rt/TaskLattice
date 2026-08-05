@@ -27,7 +27,6 @@ import {
   KeyValueGrid,
   formatCost,
   formatRelativeTime,
-  useFlashingKeys,
 } from '../shared/evaluation-ui';
 import { traceCost } from '../traces/trace-view-model';
 
@@ -42,9 +41,6 @@ function LiveStatusBadge({ status }: { status: string }) {
   return (
     <span className='flex items-center gap-2 text-xs'>
       <span className='relative flex size-2'>
-        {status === 'ONLINE' ? (
-          <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75' />
-        ) : null}
         <span className={cn('relative inline-flex size-2 rounded-full', style.dot)} />
       </span>
       {style.label}
@@ -242,9 +238,6 @@ export function EvaluationTargetList() {
     () => [...rows].sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt)),
     [rows],
   );
-  const flashing = useFlashingKeys(
-    sortedRows.map((target) => [target.id, target.lastActivityAt] as const),
-  );
   return (
     <div className='space-y-4'>
       <div className='flex flex-wrap items-end justify-between gap-3'>
@@ -257,7 +250,6 @@ export function EvaluationTargetList() {
         <div className='flex items-center gap-4'>
           <span className='flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400'>
             <span className='relative flex size-2'>
-              <span className='absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75' />
               <span className='relative inline-flex size-2 rounded-full bg-emerald-500' />
             </span>
             Live monitoring
@@ -272,7 +264,7 @@ export function EvaluationTargetList() {
             {sortedRows.map((target) => {
               const revision = state.targetRevisions.find((item) => item.id === target.currentRevisionId)!;
               return (
-                <tr key={target.id} className={cn(flashing.has(target.id) && 'eval-live-flash')}>
+                <tr key={target.id}>
                   <td>
                     <div className='flex items-center gap-3'>
                       <AgentGardenIcon type='custom' catalogIcon={target.icon} className='size-9' iconClassName='size-4' />
