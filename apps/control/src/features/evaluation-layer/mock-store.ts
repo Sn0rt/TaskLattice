@@ -222,19 +222,21 @@ function logEntriesForCase(
       });
     }
   }
-  entries.push({
-    id: dependencies.id(),
-    runId,
-    at: now,
-    caseId: datasetCase.id,
-    actor: "judge",
-    action: "judge_scored",
-    outcome: status === "FAIL" ? "violation" : "info",
-    detail:
-      Object.entries(generated.trace.judge?.scores ?? {})
-        .map(([name, score]) => `${name} ${score}/5`)
-        .join(" · ") || "not scored",
-  });
+  if (generated.trace.judge) {
+    entries.push({
+      id: dependencies.id(),
+      runId,
+      at: now,
+      caseId: datasetCase.id,
+      actor: "judge",
+      action: "judge_scored",
+      outcome: status === "FAIL" ? "violation" : "info",
+      detail:
+        Object.entries(generated.trace.judge.scores)
+          .map(([name, score]) => `${name} ${score}/5`)
+          .join(" · ") || "not scored",
+    });
+  }
   entries.push({
     id: dependencies.id(),
     runId,
@@ -302,6 +304,16 @@ function resultForCase(
   const response = failed
     ? "Guardrail bypass (fail-open): DENY was decided, but the tool executed and leaked data."
     : "Permission decision enforced: tool behavior matched expectations.";
+  // Only the evaluators selected for this run score the trace.
+  const selectedEvaluators = state.evaluators.filter((item) =>
+    run.evaluatorIds.includes(item.id),
+  );
+  const useBuiltIn = selectedEvaluators.some(
+    (item) => item.provider === "BUILT_IN",
+  );
+  const useJudge = selectedEvaluators.some(
+    (item) => item.provider === "LANGFUSE",
+  );
   const trace: EvaluationLayerTrace = {
     id: traceId,
     runId,
@@ -312,13 +324,16 @@ function resultForCase(
     latencyMs: failed ? 240 : 180,
     costUsd: 0.003,
     response,
-    deterministicScores: {
-      permission_compliance: failed ? 0 : 1,
-      execution_correctness: 1,
-    },
-    deterministicReasons: failed
-      ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
+    deterministicScores: useBuiltIn
+      ? {
+          permission_compliance: failed ? 0 : 1,
+          execution_correctness: 1,
+        }
       : {},
+    deterministicReasons:
+      useBuiltIn && failed
+        ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
+        : {},
     toolEvidence: tool
       ? [
           {
@@ -342,29 +357,33 @@ function resultForCase(
           },
         ]
       : [],
-    judge: {
-      scores: {
-        correctness: failed ? 2 : 5,
-        relevance: 5,
-        completeness: failed ? 3 : 5,
-        safety: failed ? 1 : 5,
-      },
-      reasons: { correctness: response },
-      summary: response,
-      traceId: `${traceId}-judge`,
-      observationId: null,
-      usageCost: {
-        category: 'judge',
-        model: state.settings.model,
-        inputTokens: 120,
-        outputTokens: 40,
-        cachedTokens: 0,
-        reasoningTokens: 0,
-        costUsd: 0.001,
-      },
-      model: state.settings.model,
-      promptVersion: "demo-v1",
-    },
+    ...(useJudge
+      ? {
+          judge: {
+            scores: {
+              correctness: failed ? 2 : 5,
+              relevance: 5,
+              completeness: failed ? 3 : 5,
+              safety: failed ? 1 : 5,
+            },
+            reasons: { correctness: response },
+            summary: response,
+            traceId: `${traceId}-judge`,
+            observationId: null,
+            usageCost: {
+              category: 'judge',
+              model: state.settings.model,
+              inputTokens: 120,
+              outputTokens: 40,
+              cachedTokens: 0,
+              reasoningTokens: 0,
+              costUsd: 0.001,
+            },
+            model: state.settings.model,
+            promptVersion: "demo-v1",
+          },
+        }
+      : {}),
     usageCosts: [
       {
         category: 'agent',
@@ -375,15 +394,19 @@ function resultForCase(
         reasoningTokens: 0,
         costUsd: 0.002,
       },
-      {
-        category: 'judge',
-        model: state.settings.model,
-        inputTokens: 120,
-        outputTokens: 40,
-        cachedTokens: 0,
-        reasoningTokens: 0,
-        costUsd: 0.001,
-      },
+      ...(useJudge
+        ? [
+            {
+              category: 'judge',
+              model: state.settings.model,
+              inputTokens: 120,
+              outputTokens: 40,
+              cachedTokens: 0,
+              reasoningTokens: 0,
+              costUsd: 0.001,
+            },
+          ]
+        : []),
     ],
     spans: [
       {
@@ -440,6 +463,14 @@ function simulatedTrace(
       : status === "FAIL"
         ? "Guardrail bypass (fail-open): DENY was decided, but the tool executed and leaked data."
         : "Tool connection failed before a permission decision was recorded.";
+  // Live traces are scored only by the evaluators enabled right now: toggle an
+  // evaluator off and newly captured traces carry no scores from it.
+  const builtInEnabled = state.evaluators.some(
+    (item) => item.provider === "BUILT_IN" && item.enabled,
+  );
+  const judgeEnabled = state.evaluators.some(
+    (item) => item.provider === "LANGFUSE" && item.enabled,
+  );
   return {
     id: traceId,
     runId: liveRun.id,
@@ -450,17 +481,47 @@ function simulatedTrace(
     latencyMs: Math.round(120 + dependencies.random() * 780),
     costUsd: Number((0.001 + dependencies.random() * 0.009).toFixed(4)),
     response,
-    deterministicScores: {
-      permission_compliance: status === "FAIL" ? 0 : 1,
-      execution_correctness: status === "ERROR" ? 0 : 1,
-    },
-    deterministicReasons:
-      status === "FAIL"
+    deterministicScores: builtInEnabled
+      ? {
+          permission_compliance: status === "FAIL" ? 0 : 1,
+          execution_correctness: status === "ERROR" ? 0 : 1,
+        }
+      : {},
+    deterministicReasons: !builtInEnabled
+      ? {}
+      : status === "FAIL"
         ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
         : status === "ERROR"
           ? { execution_correctness: "Simulated Tool connection failure." }
           : {},
     toolEvidence: [],
+    ...(judgeEnabled
+      ? {
+          judge: {
+            scores: {
+              correctness: status === "PASS" ? 5 : 2,
+              relevance: 5,
+              completeness: status === "PASS" ? 5 : 3,
+              safety: status === "FAIL" ? 1 : 5,
+            },
+            reasons: { correctness: response },
+            summary: response,
+            traceId: `${traceId}-judge`,
+            observationId: null,
+            model: state.settings.model,
+            promptVersion: "demo-v1",
+            usageCost: {
+              category: 'judge',
+              model: state.settings.model,
+              inputTokens: 120,
+              outputTokens: 40,
+              cachedTokens: 0,
+              reasoningTokens: 0,
+              costUsd: 0.001,
+            },
+          },
+        }
+      : {}),
     spans: [
       {
         id: dependencies.id(),
@@ -1113,7 +1174,9 @@ export function createEvaluationLayerStore(
         targetRevisionId: template.targetRevisionId,
         datasetId: template.datasetId,
         datasetRevisionId: template.datasetRevisionId,
-        evaluatorIds: [],
+        evaluatorIds: state.evaluators
+          .filter((item) => item.enabled)
+          .map((item) => item.id),
         status: "RUNNING",
         startedAt: now,
         results: [],

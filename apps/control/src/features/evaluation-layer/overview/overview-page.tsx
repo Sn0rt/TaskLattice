@@ -253,91 +253,6 @@ export function EvaluationOverviewPage() {
         )}
       </div>
 
-      {/* Work layer: the single trace table */}
-      <EvaluationTable>
-        <thead>
-          <tr>
-            <th>Trace</th>
-            <th>Agent</th>
-            <th>Case</th>
-            <th>Status</th>
-            <th>Observations</th>
-            <th>Latency</th>
-            <th>Cost</th>
-            <th>Sampled</th>
-            <th>Started</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {traces.map((trace) => {
-            const sampled = traceSampledAtRate(trace.id, samplingRate);
-            const agent = state.targets.find(
-              (target) => target.id === trace.targetId,
-            );
-            return (
-              <tr
-                key={trace.id}
-                className={cn(flashing.has(trace.id) && "eval-live-flash")}
-              >
-                <td className="font-mono text-xs">{trace.id.slice(0, 13)}…</td>
-                <td>
-                  <span className="flex items-center gap-2 whitespace-nowrap">
-                    <AgentGardenIcon
-                      type="custom"
-                      catalogIcon={agent?.icon}
-                      className="size-7"
-                      iconClassName="size-3.5"
-                    />
-                    <span className="text-xs">{agent?.name ?? trace.targetId}</span>
-                  </span>
-                </td>
-                <td>{trace.caseId}</td>
-                <td>
-                  <EvaluationLayerStatusBadge status={trace.status} />
-                </td>
-                <td>{observationCount(trace)}</td>
-                <td>
-                  {trace.latencyMs ? `${trace.latencyMs} ms` : "Not available"}
-                </td>
-                <td>{formatCost(trace.costUsd)}</td>
-                <td>
-                  {sampled ? (
-                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
-                      ✓ sampled
-                    </span>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">
-                      — dropped
-                    </span>
-                  )}
-                </td>
-                <td className="whitespace-nowrap text-xs text-muted-foreground">
-                  {formatRelativeTime(trace.startedAt)}
-                </td>
-                <td>
-                  <Button asChild size="sm" variant="outline">
-                    <Link
-                      to="/$projectId/evaluation/traces/$traceId"
-                      params={{ projectId, traceId: trace.id }}
-                    >
-                      Open
-                    </Link>
-                  </Button>
-                </td>
-              </tr>
-            );
-          })}
-          {!traces.length ? (
-            <tr>
-              <td colSpan={10} className="text-center text-muted-foreground">
-                No traces match the current filters.
-              </td>
-            </tr>
-          ) : null}
-        </tbody>
-      </EvaluationTable>
-
       {/* Configuration layer: evaluators + sampling what-if */}
       <Tabs defaultValue="evaluators">
         <TabsList>
@@ -475,6 +390,91 @@ export function EvaluationOverviewPage() {
           </EvaluationSection>
         </TabsContent>
       </Tabs>
+
+      {/* Work layer: the single trace table */}
+      <EvaluationTable>
+        <thead>
+          <tr>
+            <th>Trace</th>
+            <th>Agent</th>
+            <th>Case</th>
+            <th>Status</th>
+            <th>Observations</th>
+            <th>Latency</th>
+            <th>Cost</th>
+            <th>Sampled</th>
+            <th>Started</th>
+            <th />
+          </tr>
+        </thead>
+        <tbody>
+          {traces.map((trace) => {
+            const sampled = traceSampledAtRate(trace.id, samplingRate);
+            const agent = state.targets.find(
+              (target) => target.id === trace.targetId,
+            );
+            return (
+              <tr
+                key={trace.id}
+                className={cn(flashing.has(trace.id) && "eval-live-flash")}
+              >
+                <td className="font-mono text-xs">{trace.id.slice(0, 13)}…</td>
+                <td>
+                  <span className="flex items-center gap-2 whitespace-nowrap">
+                    <AgentGardenIcon
+                      type="custom"
+                      catalogIcon={agent?.icon}
+                      className="size-7"
+                      iconClassName="size-3.5"
+                    />
+                    <span className="text-xs">{agent?.name ?? trace.targetId}</span>
+                  </span>
+                </td>
+                <td>{trace.caseId}</td>
+                <td>
+                  <EvaluationLayerStatusBadge status={trace.status} />
+                </td>
+                <td>{observationCount(trace)}</td>
+                <td>
+                  {trace.latencyMs ? `${trace.latencyMs} ms` : "Not available"}
+                </td>
+                <td>{formatCost(trace.costUsd)}</td>
+                <td>
+                  {sampled ? (
+                    <span className="text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                      ✓ sampled
+                    </span>
+                  ) : (
+                    <span className="text-xs text-muted-foreground">
+                      — dropped
+                    </span>
+                  )}
+                </td>
+                <td className="whitespace-nowrap text-xs text-muted-foreground">
+                  {formatRelativeTime(trace.startedAt)}
+                </td>
+                <td>
+                  <Button asChild size="sm" variant="outline">
+                    <Link
+                      to="/$projectId/evaluation/traces/$traceId"
+                      params={{ projectId, traceId: trace.id }}
+                    >
+                      Open
+                    </Link>
+                  </Button>
+                </td>
+              </tr>
+            );
+          })}
+          {!traces.length ? (
+            <tr>
+              <td colSpan={10} className="text-center text-muted-foreground">
+                No traces match the current filters.
+              </td>
+            </tr>
+          ) : null}
+        </tbody>
+      </EvaluationTable>
     </div>
   );
 }

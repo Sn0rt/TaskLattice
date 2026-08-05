@@ -5,7 +5,11 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCurrentProjectId } from '@/hooks/use-project';
-import type { EvaluationLayerSpan, EvaluationLayerTrace } from '../model';
+import type {
+  EvaluationLayerEvaluator,
+  EvaluationLayerSpan,
+  EvaluationLayerTrace,
+} from '../model';
 import {
   useEvaluationLayerState,
   useEvaluationLayerStore,
@@ -108,6 +112,21 @@ export function EvaluationTraceDetail({ traceId }: { traceId: string }) {
         />
         <EvaluationMetric label='Cost' value={formatCost(traceCost(trace))} />
       </div>
+
+      <EvaluationSection
+        title='Evaluator scores'
+        description='An evaluator scores a trace only while it is enabled. Disable one on the Overview and newly captured traces show "Not scored" here.'
+      >
+        <div className='grid gap-3 md:grid-cols-2'>
+          {state.evaluators.map((evaluator) => (
+            <EvaluatorScoreCard
+              key={evaluator.id}
+              evaluator={evaluator}
+              trace={trace}
+            />
+          ))}
+        </div>
+      </EvaluationSection>
 
       {analysisOpen ? (
         <TraceAnalysis trace={trace} onClose={() => setAnalysisOpen(false)} />
@@ -371,4 +390,73 @@ function spanColor(span: EvaluationLayerSpan) {
     evaluator: '#b7791f',
     span: '#6d8078',
   }[spanObservationType(span)] ?? '#6d8078';
+}
+
+function EvaluatorScoreCard({
+  evaluator,
+  trace,
+}: {
+  evaluator: EvaluationLayerEvaluator;
+  trace: EvaluationLayerTrace;
+}) {
+  const isBuiltIn = evaluator.provider === 'BUILT_IN';
+  const judge = trace.judge;
+  const scored = isBuiltIn
+    ? Object.keys(trace.deterministicScores).length > 0
+    : Boolean(judge);
+  return (
+    <div className='rounded-md border p-4'>
+      <div className='flex items-center justify-between gap-2'>
+        <p className='font-medium'>{evaluator.name}</p>
+        <span className='text-xs text-muted-foreground'>
+          {isBuiltIn ? 'Built-in' : 'Langfuse'} · v{evaluator.version}
+        </span>
+      </div>
+      {!scored ? (
+        <p className='mt-3 text-sm text-muted-foreground'>
+          Not scored — this evaluator was disabled when the trace was captured.
+        </p>
+      ) : isBuiltIn ? (
+        <ul className='mt-3 space-y-1.5'>
+          {Object.entries(trace.deterministicScores).map(([name, score]) => (
+            <li key={name} className='flex items-center justify-between gap-2 text-sm'>
+              <span className='font-mono text-xs'>{name}</span>
+              <span
+                className={
+                  score >= 1
+                    ? 'text-xs font-medium text-emerald-600 dark:text-emerald-400'
+                    : 'text-xs font-medium text-destructive'
+                }
+              >
+                {score >= 1 ? '✓ 1/1' : '✗ 0/1'}
+              </span>
+            </li>
+          ))}
+          {Object.entries(trace.deterministicReasons).map(([name, reason]) => (
+            <li key={name} className='text-xs text-muted-foreground'>
+              {reason}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <div className='mt-3 space-y-1.5'>
+          {Object.entries(judge!.scores).map(([name, score]) => (
+            <div key={name} className='flex items-center justify-between gap-2 text-sm'>
+              <span className='font-mono text-xs'>{name}</span>
+              <span
+                className={
+                  score >= 4
+                    ? 'text-xs font-medium text-emerald-600 dark:text-emerald-400'
+                    : 'text-xs font-medium text-destructive'
+                }
+              >
+                {score}/5
+              </span>
+            </div>
+          ))}
+          <p className='pt-1 text-xs text-muted-foreground'>{judge!.summary}</p>
+        </div>
+      )}
+    </div>
+  );
 }
