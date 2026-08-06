@@ -1,5 +1,7 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, useNavigate } from '@tanstack/react-router';
+import { useQuery } from '@tanstack/react-query';
+import { ResponsiveLine } from '@nivo/line';
 import { ArrowRight, Plus, Target as TargetIcon } from 'lucide-react';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
@@ -16,7 +18,11 @@ import { Label } from '@/components/ui/label';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { useCurrentProjectId } from '@/hooks/use-project';
+import { useProjectQueryScope } from '@/hooks/use-project-query-scope';
 import { AgentGardenIcon } from '@/components/agent-garden/agent-garden-icon';
+import { api } from '@/lib/api';
+import { nivoChartTheme } from '@/components/shared/nivo-theme';
+import { cn } from '@/lib/utils';
 import type {
   EvaluationLayerResource,
   EvaluationLayerTargetKind,
@@ -24,10 +30,10 @@ import type {
   EvaluationLayerTool,
 } from '../model';
 import { useEvaluationLayerState, useEvaluationLayerStore } from '../mock-provider';
+import { KIND_COLOR } from '../shared/kind-visuals';
 import type { TargetRevisionInput } from '../mock-store';
 import { EvaluationLayerStatusBadge } from '../shared/evaluation-status';
 import {
-  EvaluationMetric,
   EvaluationSection,
   EvaluationTable,
   KeyValueGrid,
@@ -40,6 +46,11 @@ const KIND_LABELS: Record<EvaluationLayerTargetKind, string> = {
   mcp: 'MCP',
   kb: 'KB',
   skill: 'Skill',
+};
+
+/** Evaluation target id -> Agent Garden catalog agent id (live data link). */
+const targetGardenAgentIds: Record<string, string> = {
+  'demo-permission-compliance-baseline': 'adk-customer-service',
 };
 
 const targetFilters = ['All targets', 'Agents', 'MCP servers', 'Knowledge bases', 'Skills'] as const;
@@ -59,6 +70,18 @@ const kbCatalog: EvaluationLayerResource[] = [
 
 function rate(value: number) {
   return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatGap(ms: number) {
+  const totalMinutes = Math.max(0, Math.round(ms / 60_000));
+  if (totalMinutes < 1) return "less than a minute";
+  if (totalMinutes < 60) return `${totalMinutes}m`;
+  const totalHours = Math.max(1, Math.round(ms / 3_600_000));
+  if (totalHours < 24) return `${totalHours}h`;
+  const totalDays = Math.max(1, Math.round(totalHours / 24));
+  if (totalDays < 7) return `${totalDays} day${totalDays === 1 ? "" : "s"}`;
+  const weeks = Math.max(1, Math.round(totalDays / 7));
+  return `${weeks} week${weeks === 1 ? "" : "s"}`;
 }
 
 function reportMetrics(state: ReturnType<typeof useEvaluationLayerState>, reportId: string) {
@@ -294,6 +317,7 @@ export function EvaluationTargetList() {
   const projectId = useCurrentProjectId();
   const [editorOpen, setEditorOpen] = useState(false);
   const [filter, setFilter] = useState<(typeof targetFilters)[number]>('All targets');
+  const navigate = useNavigate();
   const rows = state.targets.filter((target) => {
     const kindFilter = filterToKind[filter];
     return !kindFilter || target.kind === kindFilter;
@@ -311,27 +335,43 @@ export function EvaluationTargetList() {
             {targetFilters.map((item) => <option key={item}>{item}</option>)}
           </select>
         </Label>
-        <Button onClick={() => setEditorOpen(true)}><Plus className='size-4' />Create</Button>
+        <Button onClick={() => setEditorOpen(true)}><Plus className='size-4' />Add</Button>
       </div>
       {sortedRows.length ? (
         <EvaluationTable>
-          <thead><tr><th>Target</th><th>Kind</th><th>Revision</th><th>Configuration</th><th>Updated</th><th>View</th></tr></thead>
+          <thead><tr><th>Target</th><th>Kind</th><th>Revision</th><th>Configuration</th><th>Updated</th></tr></thead>
           <tbody>
             {sortedRows.map((target) => {
               const revision = state.targetRevisions.find((item) => item.id === target.currentRevisionId)!;
               return (
-                <tr key={target.id}>
+                <tr
+                  key={target.id}
+                  onClick={() => {
+                    store.selectActiveTarget(target.id);
+                    void navigate({ to: '/$projectId/evaluation/targets/$targetId', params: { projectId, targetId: target.id } });
+                  }}
+                  className={cn('group cursor-pointer border-l-2 transition-colors hover:bg-muted/40', KIND_COLOR[target.kind].row)}
+                >
                   <td>
                     <div className='flex items-center gap-3'>
-                      <AgentGardenIcon type='custom' catalogIcon={target.icon} className='size-9' iconClassName='size-4' />
-                      <span className='font-medium'>{target.name}</span>
+                      <span className={cn('grid size-9 shrink-0 place-items-center rounded-lg border', KIND_COLOR[target.kind].iconBox)}>
+                        <AgentGardenIcon type='custom' catalogIcon={target.icon} className='size-9' iconClassName='size-4' />
+                      </span>
+                      <span className='font-medium text-primary underline-offset-4 transition-colors group-hover:underline'>
+                        {target.name}
+                        <ArrowRight className='ml-1 inline size-3.5 opacity-70 transition-transform group-hover:translate-x-0.5' />
+                      </span>
                     </div>
                   </td>
-                  <td>{KIND_LABELS[target.kind]}</td>
+                  <td>
+                    <span className={cn('inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium', KIND_COLOR[target.kind].badge)}>
+                      <span className={cn('size-1.5 rounded-full', KIND_COLOR[target.kind].dot)} />
+                      {KIND_LABELS[target.kind]}
+                    </span>
+                  </td>
                   <td>R{revision.revision}</td>
                   <td>{configurationSummary(revision)}</td>
                   <td>{new Date(revision.createdAt).toLocaleString()}</td>
-                  <td><Button asChild size='sm' variant='outline'><Link onClick={() => store.selectActiveTarget(target.id)} to='/$projectId/evaluation/targets/$targetId' params={{ projectId, targetId: target.id }}>View<ArrowRight className='size-4' /></Link></Button></td>
                 </tr>
               );
             })}
@@ -348,8 +388,17 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
   const store = useEvaluationLayerStore();
   const projectId = useCurrentProjectId();
   const navigate = useNavigate();
-  const [editorOpen, setEditorOpen] = useState(false);
   const target = state.targets.find((item) => item.id === targetId);
+  const scope = useProjectQueryScope();
+  const garden = useQuery({
+    queryKey: scope.key('agent-garden'),
+    queryFn: api.getAgentGarden,
+  });
+  const linkedGardenId = target ? targetGardenAgentIds[target.id] : undefined;
+  const linkedAgent = linkedGardenId
+    ? garden.data?.agents.find((agent) => agent.id === linkedGardenId)
+    : undefined;
+  const [editorOpen, setEditorOpen] = useState(false);
   const revisions = useMemo(() => state.targetRevisions.filter((item) => item.targetId === targetId).sort((a, b) => b.revision - a.revision), [state.targetRevisions, targetId]);
   if (!target) return <EmptyState icon={TargetIcon} title='Target not found' description='This Target does not exist in the Evaluation demo.' action={<Button asChild variant='outline'><Link to='/$projectId/evaluation/targets' params={{ projectId }}>Back to Target</Link></Button>} />;
   const current = revisions.find((item) => item.id === target.currentRevisionId)!;
@@ -358,8 +407,20 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
     const metrics = reportMetrics(state, report.id);
     const targetRevision = state.targetRevisions.find((item) => item.id === metrics.run?.targetRevisionId);
     const datasetRevision = state.datasetRevisions.find((item) => item.id === metrics.run?.datasetRevisionId);
-    const previous = reports[index + 1] ? reportMetrics(state, reports[index + 1]!.id).passRate : undefined;
-    return { report, metrics, targetRevision, datasetRevision, delta: previous === undefined ? undefined : metrics.passRate - previous };
+    const previousMetrics = reports[index + 1] ? reportMetrics(state, reports[index + 1]!.id) : undefined;
+    const previousReport = reports[index + 1];
+    const gapMs = previousReport
+      ? new Date(report.createdAt).getTime() - new Date(previousReport.createdAt).getTime()
+      : undefined;
+    return {
+      report,
+      metrics,
+      targetRevision,
+      datasetRevision,
+      delta: previousMetrics === undefined ? undefined : metrics.passRate - previousMetrics.passRate,
+      costDelta: previousMetrics === undefined ? undefined : metrics.cost - previousMetrics.cost,
+      gapMs,
+    };
   });
   const latest = reportRows[0];
   const renderToolTable = (tools: EvaluationLayerTool[]) => (
@@ -386,11 +447,30 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
       <div className='flex flex-wrap items-start justify-between gap-3'>
         <div className='flex items-start gap-4'>
           <AgentGardenIcon type='custom' catalogIcon={target.icon} />
-          <div><h2 className='text-2xl font-semibold'>{target.name}</h2><p className='mt-1 text-sm text-muted-foreground'>{target.description || 'No description recorded.'}</p><p className='mt-1 text-xs text-muted-foreground'>Revision {current.revision} · {configurationSummary(current)}</p></div>
+          <div><div className='flex flex-wrap items-center gap-2'>
+                      <h2 className='text-2xl font-semibold'>{target.name}</h2>
+                      {linkedAgent ? (
+                        <Link to='/$projectId/agent-garden/$agentId' params={{ projectId, agentId: linkedAgent.id }} className='inline-flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium text-primary underline-offset-4 hover:underline'>
+                          Agent Garden
+                          <ArrowRight className='size-3.5' />
+                        </Link>
+                      ) : null}
+                    </div><p className='mt-1 text-sm text-muted-foreground'>{target.description || 'No description recorded.'}</p><p className='mt-1 text-xs text-muted-foreground'>Revision {current.revision} · {configurationSummary(current)}</p></div>
         </div>
-        <div className='flex gap-2'><Button variant='outline' onClick={() => setEditorOpen(true)}><Plus className='size-4' />New revision</Button><Button onClick={evaluate}>Evaluate</Button></div>
+        <div className='flex gap-2'><Button variant='outline' className='hidden' onClick={() => setEditorOpen(true)}><Plus className='size-4' />New revision</Button><Button onClick={evaluate} className='fixed right-4 top-16 z-40 shadow-md sm:right-6 lg:right-8'>Evaluate</Button></div>
       </div>
-      <EvaluationSection title='Configuration'>
+      <EvaluationSection
+        title='Configuration'
+        action={
+          target.kind === 'skill' ? (
+            <Button asChild variant='outline' size='sm'><Link to='/$projectId/skills' params={{ projectId }}>Skills detail<ArrowRight className='size-4' /></Link></Button>
+          ) : target.kind === 'mcp' ? (
+            <Button asChild variant='outline' size='sm'><Link to='/$projectId/mcp-servers' params={{ projectId }}>MCP detail<ArrowRight className='size-4' /></Link></Button>
+          ) : target.kind === 'kb' ? (
+            <Button asChild variant='outline' size='sm'><Link to='/$projectId/knowledge-base' params={{ projectId }}>Knowledge base detail<ArrowRight className='size-4' /></Link></Button>
+          ) : undefined
+        }
+      >
         <KeyValueGrid className='lg:grid-cols-3' items={configItems} />
         <Tabs defaultValue={current.kind === 'skill' ? 'instructions' : current.kind === 'kb' ? 'sources' : 'tools'} className='mt-4'>
           <TabsList>
@@ -413,18 +493,113 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
               ['Status', <EvaluationLayerStatusBadge status={latest.report.status} />],
               ['Pass rate', rate(latest.metrics.passRate)],
               ['Evaluation cost', formatCost(latest.metrics.cost)],
-              ['Created', new Date(latest.report.createdAt).toLocaleString()],
+              ['Created', <span className='inline-flex items-center gap-2'><span>{new Date(latest.report.createdAt).toLocaleString()}</span>{latest.gapMs !== undefined ? <span className='text-xs text-muted-foreground'>({formatGap(latest.gapMs)} ago)</span> : null}</span>],
             ]} />
             <Button asChild className='md:col-start-4'><Link to='/$projectId/evaluation/reports/$reportId' params={{ projectId, reportId: latest.report.id }}>View report</Link></Button>
           </div>
         ) : <p className='text-sm text-muted-foreground'>No immutable Reports have been created for this Target yet.</p>}
       </EvaluationSection>
       <div className='grid gap-4 md:grid-cols-2'>
-        <EvaluationSection title='Quality trend'>{reportRows.length < 2 ? <p className='text-sm text-muted-foreground'>At least two Reports are required to show a quality trend.</p> : <div className='space-y-3'>{reportRows.map((row) => <div key={row.report.id}><div className='flex justify-between text-xs'><span>{new Date(row.report.createdAt).toLocaleDateString()}</span><span>{rate(row.metrics.passRate)}</span></div><div className='mt-1 h-2 rounded bg-muted'><div className='h-2 rounded bg-emerald-500' style={{ width: rate(row.metrics.passRate) }} /></div></div>)}</div>}</EvaluationSection>
-        <EvaluationSection title='Cost trend'>{reportRows.length < 2 ? <p className='text-sm text-muted-foreground'>At least two Reports with evaluation cost are required to show a cost trend.</p> : <div className='grid gap-3 sm:grid-cols-2'>{reportRows.map((row) => <EvaluationMetric key={row.report.id} label={new Date(row.report.createdAt).toLocaleDateString()} value={formatCost(row.metrics.cost)} />)}</div>}</EvaluationSection>
+        <EvaluationSection title='Quality trend'>{reportRows.length < 2 ? <p className='text-sm text-muted-foreground'>At least two Reports are required to show a quality trend.</p> : (
+          <div className='h-52'>
+            <ResponsiveLine
+              data={[{ id: 'Pass rate', color: '#10b981', data: [...reportRows].reverse().map((row) => ({ x: new Date(row.report.createdAt).toLocaleDateString(), y: row.metrics.passRate * 100 })) }]}
+              margin={{ top: 18, right: 24, bottom: 18, left: 24 }}
+              xScale={{ type: 'point' }}
+              yScale={{ type: 'linear', min: 0, max: 100 }}
+              axisTop={null}
+              axisRight={null}
+              axisBottom={null}
+              axisLeft={null}
+              colors={{ datum: 'color' }}
+              curve='monotoneX'
+              lineWidth={3}
+              enableArea
+              defs={[
+                {
+                  id: 'quality-gradient',
+                  type: 'linearGradient',
+                  colors: [
+                    { offset: 0, color: 'inherit', opacity: 0.28 },
+                    { offset: 100, color: 'inherit', opacity: 0 },
+                  ],
+                },
+              ]}
+              fill={[{ match: '*', id: 'quality-gradient' }]}
+              enablePoints
+              pointSize={4}
+              pointColor='white'
+              pointBorderWidth={2}
+              pointBorderColor={{ from: 'serieColor' }}
+              enableGridX={false}
+              enableGridY={false}
+              useMesh
+              animate={false}
+              role='img'
+              ariaLabel='Quality trend line chart'
+              theme={nivoChartTheme}
+              tooltip={({ point }) => (
+                <div className='rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md'>
+                  <p className='font-medium'>{String(point.data.x)}</p>
+                  <p className='mt-0.5 text-muted-foreground'>Pass rate: <strong className='text-foreground'>{Number(point.data.y).toFixed(1)}%</strong></p>
+                </div>
+              )}
+            />
+          </div>
+        )}</EvaluationSection>
+        <EvaluationSection title='Cost trend'>{reportRows.length < 2 ? <p className='text-sm text-muted-foreground'>At least two Reports with evaluation cost are required to show a cost trend.</p> : (
+          <div className='h-52'>
+            <ResponsiveLine
+              data={[{ id: 'Cost', color: '#8b5cf6', data: [...reportRows].reverse().map((row) => ({ x: new Date(row.report.createdAt).toLocaleDateString(), y: row.metrics.cost })) }]}
+              margin={{ top: 18, right: 24, bottom: 18, left: 24 }}
+              xScale={{ type: 'point' }}
+              yScale={{ type: 'linear', min: 0, max: 'auto' }}
+              axisTop={null}
+              axisRight={null}
+              axisBottom={null}
+              axisLeft={null}
+              colors={{ datum: 'color' }}
+              curve='monotoneX'
+              lineWidth={3}
+              enableArea
+              defs={[
+                {
+                  id: 'cost-gradient',
+                  type: 'linearGradient',
+                  colors: [
+                    { offset: 0, color: 'inherit', opacity: 0.28 },
+                    { offset: 100, color: 'inherit', opacity: 0 },
+                  ],
+                },
+              ]}
+              fill={[{ match: '*', id: 'cost-gradient' }]}
+              enablePoints
+              pointSize={4}
+              pointColor='white'
+              pointBorderWidth={2}
+              pointBorderColor={{ from: 'serieColor' }}
+              enableGridX={false}
+              enableGridY={false}
+              useMesh
+              animate={false}
+              role='img'
+              ariaLabel='Cost trend line chart'
+              theme={nivoChartTheme}
+              tooltip={({ point }) => (
+                <div className='rounded-md border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md'>
+                  <p className='font-medium'>{String(point.data.x)}</p>
+                  <p className='mt-0.5 text-muted-foreground'>Cost: <strong className='text-foreground'>{formatCost(Number(point.data.y))}</strong></p>
+                </div>
+              )}
+            />
+          </div>
+        )}</EvaluationSection>
       </div>
       <EvaluationSection title='Report history'>
-        {reportRows.length ? <EvaluationTable><thead><tr><th>Report ID</th><th>Time</th><th>Target revision</th><th>Dataset revision</th><th>Status</th><th>Pass rate</th><th>Pass rate delta</th><th>Cost</th></tr></thead><tbody>{reportRows.map((row) => <tr key={row.report.id}><td><Button asChild size='sm' variant='outline'><Link className='font-mono text-xs' to='/$projectId/evaluation/reports/$reportId' params={{ projectId, reportId: row.report.id }}>{row.report.id}</Link></Button></td><td>{new Date(row.report.createdAt).toLocaleString()}</td><td>{row.targetRevision ? `R${row.targetRevision.revision}` : '—'}</td><td>{row.datasetRevision ? `R${row.datasetRevision.revision}` : '—'}</td><td>{row.report.status}</td><td>{rate(row.metrics.passRate)}</td><td>{row.delta === undefined ? '—' : `${row.delta >= 0 ? '+' : ''}${(row.delta * 100).toFixed(1)} pp`}</td><td>{formatCost(row.metrics.cost)}</td></tr>)}</tbody></EvaluationTable> : <p className='text-sm text-muted-foreground'>No Reports yet.</p>}
+        {reportRows.length ? <EvaluationTable><thead><tr><th>Report ID</th><th>Time</th><th>Target revision</th><th>Dataset revision</th><th>Status</th><th>Pass rate</th><th>Pass rate delta</th><th>Cost</th></tr></thead><tbody>{reportRows.map((row) => <tr key={row.report.id}><td><Button asChild size='sm' variant='outline'><Link className='font-mono text-xs' to='/$projectId/evaluation/reports/$reportId' params={{ projectId, reportId: row.report.id }}>{row.report.id}</Link></Button></td><td>
+                    <div>{new Date(row.report.createdAt).toLocaleString()}</div>
+                    {row.gapMs !== undefined ? <div className='mt-0.5 text-xs text-muted-foreground'>{formatGap(row.gapMs)} ago</div> : null}
+                  </td><td>{row.targetRevision ? `R${row.targetRevision.revision}` : '—'}</td><td>{row.datasetRevision ? `R${row.datasetRevision.revision}` : '—'}</td><td>{row.report.status}</td><td>{rate(row.metrics.passRate)}</td><td>{row.delta === undefined ? '—' : `${row.delta >= 0 ? '+' : ''}${(row.delta * 100).toFixed(1)} pp`}</td><td>{formatCost(row.metrics.cost)}</td></tr>)}</tbody></EvaluationTable> : <p className='text-sm text-muted-foreground'>No Reports yet.</p>}
       </EvaluationSection>
       <TargetEditor open={editorOpen} onOpenChange={setEditorOpen} targetId={target.id} />
     </div>

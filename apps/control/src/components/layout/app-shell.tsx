@@ -8,7 +8,6 @@ import {
   ChartNoAxesCombined,
   CheckCircle2,
   CircleDollarSign,
-  CircleHelp,
   Database,
   Eye,
   FileLock2,
@@ -219,22 +218,6 @@ function NavigationItem({ item, pathname, projectId }: {
   );
 }
 
-function DisabledNav({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
-  return (
-    <SidebarMenuItem>
-      <SidebarMenuButton
-        aria-label={label}
-        disabled
-        tooltip={`${label} — not part of the current Agent operating path.`}
-      >
-        <Icon />
-        <span>{label}</span>
-        <span className="ml-auto bg-muted px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide group-data-[collapsible=icon]:hidden">Later</span>
-      </SidebarMenuButton>
-    </SidebarMenuItem>
-  );
-}
-
 function DemoRoleSwitcher({ actualRole }: { actualRole: ProjectRole }) {
   const { roleOverride, setRoleOverride } = useDemoRole();
   return (
@@ -268,7 +251,6 @@ function DemoRoleSwitcher({ actualRole }: { actualRole: ProjectRole }) {
     </div>
   );
 }
-
 function ProjectSidebar({ logout, pathname, user }: {
   logout: () => void | Promise<void>;
   pathname: string;
@@ -335,9 +317,6 @@ function ProjectSidebar({ logout, pathname, user }: {
         </SidebarContent>
         <SidebarFooter className="border-t border-sidebar-border p-2">
           <DemoRoleSwitcher actualRole={currentProject?.role ?? "member"} />
-          <SidebarMenu>
-            <DisabledNav icon={CircleHelp} label="Help & documentation" />
-          </SidebarMenu>
           <div className="mt-1 border-t border-sidebar-border pt-2">
             <AccountMenu
               collapsed={!isMobile && state === "collapsed"}

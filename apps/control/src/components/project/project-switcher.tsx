@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useProject } from "@/hooks/use-project";
 import { useProjectPermissions } from "@/hooks/use-project-permissions";
+import { projectDisplayName } from "@/lib/project-display";
 import { cn } from "@/lib/utils";
 
 export function ProjectSwitcher({
@@ -40,6 +41,10 @@ export function ProjectSwitcher({
   const permissions = useProjectPermissions();
   const [open, setOpen] = useState(false);
   const [switchError, setSwitchError] = useState("");
+  const currentProjectDisplayName = projectDisplayName(
+    currentProject?.name,
+    currentProject?.id,
+  );
 
   const handleSelect = async (projectId: string, projectName: string) => {
     if (projectId === currentProject?.id || isSwitching) return;
@@ -74,7 +79,7 @@ export function ProjectSwitcher({
             type="button"
             aria-label={
               currentProject
-                ? `Current project: ${currentProject.name}. Switch project`
+                ? `Current project: ${currentProjectDisplayName}. Switch project`
                 : "No project available"
             }
             className={cn(
@@ -92,7 +97,7 @@ export function ProjectSwitcher({
             {collapsed ? null : (
               <>
                 <span className="min-w-0 flex-1 truncate text-sm font-semibold">
-                  {currentProject?.name ?? "No project available"}
+                  {currentProjectDisplayName ?? "No project available"}
                 </span>
                 {isSwitching ? (
                   <LoaderCircle className="size-4 shrink-0 animate-spin text-muted-foreground" />
@@ -136,7 +141,9 @@ export function ProjectSwitcher({
                     <span className="size-4" aria-hidden="true" />
                   )}
                 </span>
-                <span className="min-w-0 flex-1 truncate">{project.name}</span>
+                <span className="min-w-0 flex-1 truncate">
+                  {projectDisplayName(project.name, project.id)}
+                </span>
               </DropdownMenuItem>
             );
           })}

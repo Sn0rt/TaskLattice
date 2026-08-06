@@ -1,5 +1,6 @@
 import { Fragment } from "react";
 import { useProject } from "@/hooks/use-project";
+import { projectDisplayName } from "@/lib/project-display";
 import { cn } from "@/lib/utils";
 
 const routeLabels: Record<string, string> = {
@@ -128,18 +129,24 @@ export function HeaderBreadcrumb({ pathname }: { pathname: string }) {
   const { currentProject: currentProject } = useProject();
   const items = getHeaderBreadcrumbItems(pathname);
   const lastIndex = items.length - 1;
+  const currentProjectDisplayName = projectDisplayName(
+    currentProject?.name,
+    currentProject?.id,
+  );
+  const projectId = pathname.split("/").filter(Boolean)[0] ?? "";
 
   return (
     <nav
       aria-label="Breadcrumb"
       className="flex min-w-0 items-center gap-1 text-xs text-muted-foreground"
     >
-      <span
-        className="max-w-36 shrink-0 truncate font-medium text-foreground sm:max-w-48"
-        title={currentProject?.name}
+      <a
+        href={`/${projectId}`}
+        className="max-w-36 shrink-0 truncate font-medium text-foreground underline-offset-4 hover:underline sm:max-w-48"
+        title={currentProjectDisplayName}
       >
-        {currentProject?.name ?? "Project"}
-      </span>
+        {currentProjectDisplayName ?? "Project"}
+      </a>
       {items.map((item, index) => {
         const current = index === lastIndex;
         return (
@@ -153,18 +160,19 @@ export function HeaderBreadcrumb({ pathname }: { pathname: string }) {
             >
               /
             </span>
-            <span
+            <a
+              href={item.href}
               aria-current={current ? "page" : undefined}
               className={cn(
-                "shrink-0",
+                "shrink-0 underline-offset-4 hover:underline",
                 current
                   ? "min-w-0 truncate font-medium text-foreground"
-                  : "hidden md:inline",
+                  : "hidden md:inline text-muted-foreground hover:text-foreground",
               )}
               title={item.label}
             >
               {item.label}
-            </span>
+            </a>
           </Fragment>
         );
       })}
