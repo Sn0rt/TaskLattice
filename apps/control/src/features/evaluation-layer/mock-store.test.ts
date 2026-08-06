@@ -82,6 +82,91 @@ describe("EvaluationLayerStore", () => {
     expect(revision.tools).toHaveLength(1);
   });
 
+  it('generates mcp scenario traces with tool evidence', () => {
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures());
+    const revision = store.getState().targetRevisions.find(
+      (item) => item.targetId === 'demo-operations-mcp',
+    )!;
+    const datasetRevision = store.getState().datasetRevisions.find(
+      (item) => item.targetId === 'demo-operations-mcp',
+    )!;
+    const created = store.createRun({
+      targetRevisionId: revision.id,
+      datasetRevisionId: datasetRevision.id,
+      evaluatorIds: ['permission-compliance'],
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const runId = created.value.runId;
+    let guard = 0;
+    let complete = false;
+    while (!complete && guard < 20) {
+      const result = store.advanceRun(runId);
+      expect(result.ok).toBe(true);
+      complete = result.ok ? result.value.complete : true;
+      guard += 1;
+    }
+    const trace = store.getState().traces.find((item) => item.runId === runId)!;
+    expect(trace.toolEvidence.length).toBeGreaterThan(0);
+    expect(trace.deterministicScores.tool_requested).toBe(1);
+  });
+
+  it('generates kb scenario traces with grounded response', () => {
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures());
+    const revision = store.getState().targetRevisions.find(
+      (item) => item.targetId === 'demo-policy-kb',
+    )!;
+    const datasetRevision = store.getState().datasetRevisions.find(
+      (item) => item.targetId === 'demo-policy-kb',
+    )!;
+    const created = store.createRun({
+      targetRevisionId: revision.id,
+      datasetRevisionId: datasetRevision.id,
+      evaluatorIds: ['permission-compliance'],
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const runId = created.value.runId;
+    let guard = 0;
+    let complete = false;
+    while (!complete && guard < 20) {
+      const result = store.advanceRun(runId);
+      expect(result.ok).toBe(true);
+      complete = result.ok ? result.value.complete : true;
+      guard += 1;
+    }
+    const trace = store.getState().traces.find((item) => item.runId === runId)!;
+    expect(trace.response).toContain('retrieved');
+  });
+
+  it('generates skill scenario traces with instruction compliance scores', () => {
+    const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures());
+    const revision = store.getState().targetRevisions.find(
+      (item) => item.targetId === 'demo-document-summarization',
+    )!;
+    const datasetRevision = store.getState().datasetRevisions.find(
+      (item) => item.targetId === 'demo-document-summarization',
+    )!;
+    const created = store.createRun({
+      targetRevisionId: revision.id,
+      datasetRevisionId: datasetRevision.id,
+      evaluatorIds: ['permission-compliance'],
+    });
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const runId = created.value.runId;
+    let guard = 0;
+    let complete = false;
+    while (!complete && guard < 20) {
+      const result = store.advanceRun(runId);
+      expect(result.ok).toBe(true);
+      complete = result.ok ? result.value.complete : true;
+      guard += 1;
+    }
+    const trace = store.getState().traces.find((item) => item.runId === runId)!;
+    expect(trace.deterministicScores.instruction_compliance).toBe(1);
+  });
+
   it('stores Dataset schema, completes Tool coverage and shares Dataset context', () => {
     let sequence = 0;
     const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures(), {

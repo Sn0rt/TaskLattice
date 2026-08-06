@@ -7,9 +7,11 @@ import type {
   EvaluationLayerLogEntry,
   EvaluationLayerRun,
   EvaluationLayerSettings,
+  EvaluationLayerSpan,
   EvaluationLayerState,
   EvaluationLayerTargetKind,
   EvaluationLayerTargetRevision,
+  EvaluationLayerToolEvidence,
   EvaluationLayerTrace,
 } from "./model";
 
@@ -299,42 +301,123 @@ function resultForCase(
   const toolName = String(datasetCase.expectedOutput.expected_tool_called ?? "");
   const tool = revision?.tools.find((item) => item.name === toolName);
   const failed = datasetCase.id.includes("bypass");
+  const denied =
+    String(datasetCase.expectedOutput.permission_decision ?? "").toUpperCase() ===
+    "DENY";
   const traceId = dependencies.id();
   const now = dependencies.now();
-  const response = failed
-    ? "Guardrail bypass (fail-open): DENY was decided, but the tool executed and leaked data."
-    : "Permission decision enforced: tool behavior matched expectations.";
-  // Only the evaluators selected for this run score the trace.
-  const selectedEvaluators = state.evaluators.filter((item) =>
-    run.evaluatorIds.includes(item.id),
-  );
-  const useBuiltIn = selectedEvaluators.some(
-    (item) => item.provider === "BUILT_IN",
-  );
-  const useJudge = selectedEvaluators.some(
-    (item) => item.provider === "LANGFUSE",
-  );
-  const trace: EvaluationLayerTrace = {
-    id: traceId,
-    runId,
-    caseId: datasetCase.id,
-    targetId: run.targetId,
-    status: failed ? "FAIL" : "PASS",
-    startedAt: now,
-    latencyMs: failed ? 240 : 180,
-    costUsd: 0.003,
-    response,
-    deterministicScores: useBuiltIn
-      ? {
-          permission_compliance: failed ? 0 : 1,
-          execution_correctness: 1,
-        }
-      : {},
-    deterministicReasons:
-      useBuiltIn && failed
-        ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
-        : {},
-    toolEvidence: tool
+  const kind = revision?.kind ?? "agent";
+  let response: string;
+  let deterministicScores: Record<string, number>;
+  let deterministicReasons: Record<string, string>;
+  let toolEvidence: EvaluationLayerToolEvidence[];
+  let spans: EvaluationLayerSpan[];
+
+  if (kind === "mcp") {
+    response = failed
+      ? "MCP tool executed despite a DENY decision (fail-open)."
+      : "MCP tool executed and returned the expected operational result.";
+    deterministicScores = {
+      tool_requested: 1,
+      tool_executed: failed || denied ? 0 : 1,
+      tool_succeeded: 1,
+      effect_verified: 0,
+    };
+    deterministicReasons = failed
+      ? { tool_executed: "MCP tool executed despite a DENY decision." }
+      : {};
+    toolEvidence = tool
+      ? [
+          {
+            id: dependencies.id(),
+            toolId: tool.id,
+            requested: true,
+            executed: !failed && !denied,
+            succeeded: true,
+            effectVerified: null,
+            verificationRequired: tool.verificationRequired,
+            requestedArguments: structuredClone(datasetCase.input),
+            executedArguments: structuredClone(datasetCase.input),
+            output: { result: response },
+            error: null,
+            traceId,
+            observationId: null,
+            startedAt: now,
+            endedAt: now,
+            latencyMs: failed ? 120 : 80,
+            receipt: null,
+          },
+        ]
+      : [];
+    spans = [
+      {
+        id: dependencies.id(),
+        name: datasetCase.id,
+        kind: "TRACE",
+        status: "OK",
+        startedAt: now,
+        endedAt: now,
+        output: { response },
+      },
+    ];
+  } else if (kind === "kb") {
+    response = failed
+      ? "KB retrieval missed the expected source (fail-open)."
+      : "Policy retrieved from the Knowledge Base and grounded the answer.";
+    deterministicScores = {
+      retrieval_hit: failed ? 0 : 1,
+      grounding: failed ? 0 : 1,
+    };
+    deterministicReasons = failed
+      ? { retrieval_hit: "Expected source was not retrieved." }
+      : {};
+    toolEvidence = [];
+    spans = [
+      {
+        id: dependencies.id(),
+        name: datasetCase.id,
+        kind: "TRACE",
+        status: "OK",
+        startedAt: now,
+        endedAt: now,
+        output: { response },
+      },
+    ];
+  } else if (kind === "skill") {
+    response = failed
+      ? "Skill instructions were not applied (fail-open)."
+      : "Skill instructions applied and produced the expected output.";
+    deterministicScores = {
+      instruction_compliance: failed ? 0 : 1,
+      output_format: failed ? 0 : 1,
+    };
+    deterministicReasons = failed
+      ? { instruction_compliance: "Expected skill behavior was not observed." }
+      : {};
+    toolEvidence = [];
+    spans = [
+      {
+        id: dependencies.id(),
+        name: datasetCase.id,
+        kind: "TRACE",
+        status: "OK",
+        startedAt: now,
+        endedAt: now,
+        output: { response },
+      },
+    ];
+  } else {
+    response = failed
+      ? "Guardrail bypass (fail-open): DENY was decided, but the tool executed and leaked data."
+      : "Permission decision enforced: tool behavior matched expectations.";
+    deterministicScores = {
+      permission_compliance: failed ? 0 : 1,
+      execution_correctness: 1,
+    };
+    deterministicReasons = failed
+      ? { permission_compliance: "GUARDRAIL_BYPASSED (fail-open): tool executed despite a DENY decision." }
+      : {};
+    toolEvidence = tool
       ? [
           {
             id: dependencies.id(),
@@ -356,7 +439,49 @@ function resultForCase(
             receipt: tool.verificationRequired ? { verified: true } : null,
           },
         ]
-      : [],
+      : [];
+    spans = [
+      {
+        id: dependencies.id(),
+        name: datasetCase.id,
+        kind: "TRACE",
+        status: "OK",
+        startedAt: now,
+        endedAt: now,
+        input: structuredClone(datasetCase.input),
+        output: { response },
+        metadata: { runId, caseId: datasetCase.id },
+        observationType: 'agent',
+        level: 'DEFAULT',
+        ...(revision?.model ? { model: revision.model } : {}),
+        usageDetails: { input_tokens: 180, output_tokens: 60 },
+        costDetails: { total: 0.002 },
+      },
+    ];
+  }
+  // Only the evaluators selected for this run score the trace.
+  const selectedEvaluators = state.evaluators.filter((item) =>
+    run.evaluatorIds.includes(item.id),
+  );
+  const useBuiltIn = selectedEvaluators.some(
+    (item) => item.provider === "BUILT_IN",
+  );
+  const useJudge = selectedEvaluators.some(
+    (item) => item.provider === "LANGFUSE",
+  );
+  const trace: EvaluationLayerTrace = {
+    id: traceId,
+    runId,
+    caseId: datasetCase.id,
+    targetId: run.targetId,
+    status: failed ? "FAIL" : "PASS",
+    startedAt: now,
+    latencyMs: failed ? 240 : 180,
+    costUsd: 0.003,
+    response,
+    deterministicScores: useBuiltIn ? deterministicScores : {},
+    deterministicReasons: useBuiltIn ? deterministicReasons : {},
+    toolEvidence,
     ...(useJudge
       ? {
           judge: {
@@ -408,24 +533,7 @@ function resultForCase(
           ]
         : []),
     ],
-    spans: [
-      {
-        id: dependencies.id(),
-        name: datasetCase.id,
-        kind: "TRACE",
-        status: "OK",
-        startedAt: now,
-        endedAt: now,
-        input: structuredClone(datasetCase.input),
-        output: { response },
-        metadata: { runId, caseId: datasetCase.id },
-        observationType: 'agent',
-        level: 'DEFAULT',
-        ...(revision?.model ? { model: revision.model } : {}),
-        usageDetails: { input_tokens: 180, output_tokens: 60 },
-        costDetails: { total: 0.002 },
-      },
-    ],
+    spans,
     markedFailed: failed,
   };
   return {
