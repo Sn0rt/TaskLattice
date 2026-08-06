@@ -11,7 +11,7 @@
     "db:seed-skills": "node prisma/seed-built-in-skills.mjs",
     "prebuild": "npm run db:generate",
     "build": "vite build",
-    "dev": "node --env-file-if-exists=../../.env ../../node_modules/vite/bin/vite.js --host 0.0.0.0 --port ${PORT:-8080}",
+    "dev": "node --env-file-if-exists=../../.env ../../node_modules/vite/bin/vite.js",
     "start": "node .output/server/index.mjs",
     "pretest": "npm run db:generate",
     "test": "vitest run --config vitest.config.ts",

@@ -6,6 +6,10 @@ import { nitro } from "nitro/vite";
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  server: {
+    host: process.env.HOST || "0.0.0.0",
+    port: Number(process.env.PORT) || 8080,
+  },
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
