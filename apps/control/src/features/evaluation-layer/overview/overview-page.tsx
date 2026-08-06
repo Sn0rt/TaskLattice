@@ -241,29 +241,6 @@ export function EvaluationOverviewPage() {
         </div>
       </div>
 
-      {/* Live activity feed */}
-      <div className="flex items-center gap-3 overflow-hidden rounded-md border bg-card px-4 py-2.5 text-xs">
-        <span className="shrink-0 font-semibold uppercase tracking-wide">
-          Latest
-        </span>
-        {state.activity.length ? (
-          <ul className="flex min-w-0 gap-6 overflow-x-auto text-muted-foreground">
-            {state.activity.slice(0, 5).map((event) => (
-              <li key={event.id} className="whitespace-nowrap">
-                <span className="text-foreground">
-                  {formatRelativeTime(event.at)}
-                </span>{" "}
-                · {event.message}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p className="text-muted-foreground">
-            Waiting for live monitoring events…
-          </p>
-        )}
-      </div>
-
       {/* Configuration layer: evaluators + sampling what-if */}
       <Tabs defaultValue="evaluators">
         <TabsList>

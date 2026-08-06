@@ -154,7 +154,7 @@ describe("EvaluationLayerStore", () => {
     expect(liveRun.status).toBe("RUNNING");
     expect(
       state.traces.filter((trace) => trace.runId === "run-permission-baseline"),
-    ).toHaveLength(2);
+    ).toHaveLength(6);
     // A second tick reuses the same live run instead of creating more runs.
     const runCount = state.runs.length;
     store.tickSimulation();

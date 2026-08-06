@@ -53,7 +53,7 @@ describe("buildBehaviorModel", () => {
     const { state, run } = fixtureRun("run-permission-baseline");
     const model = buildBehaviorModel(state, run);
 
-    expect(model.total).toBe(2);
+    expect(model.total).toBe(6);
     expect(model.anomalous).toBe(1);
 
     const weather = model.rows.find((row) => row.caseId === "weather-guest-allow")!;

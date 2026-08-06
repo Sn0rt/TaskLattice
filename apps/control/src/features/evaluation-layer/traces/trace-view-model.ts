@@ -224,6 +224,9 @@ export function recommendations(trace: EvaluationLayerTrace): TraceRecommendatio
     if (toolPassed(item)) continue;
     let change: string;
     if (!item.executed) {
+      // A PASS trace with a blocked Tool is the expected outcome, not a
+      // broken path: the permission denial was enforced by design.
+      if (trace.status === "PASS") continue;
       change = `Make the trigger condition for ${item.toolId} explicit and require the Agent to call it before answering when that condition matches.`;
     } else if (!item.succeeded) {
       change = `Validate ${item.toolId} arguments against its schema, surface the Tool error to the Agent, and add a bounded retry or fallback path.`;
