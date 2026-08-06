@@ -5,6 +5,7 @@ import type {
   EvaluationLayerDatasetColumn,
   EvaluationLayerDatasetRevision,
   EvaluationLayerLogEntry,
+  EvaluationLayerResource,
   EvaluationLayerRun,
   EvaluationLayerSettings,
   EvaluationLayerSpan,
@@ -40,6 +41,9 @@ export interface CreateTargetInput {
   adapter?: string;
   prompt?: string;
   tools?: EvaluationLayerTargetRevision['tools'];
+  endpoint?: string;
+  sources?: EvaluationLayerResource[];
+  version?: string;
 }
 
 export type TargetRevisionInput = Partial<
@@ -747,6 +751,9 @@ export function createEvaluationLayerStore(
             adapter: input.adapter ?? "permission-compliance",
             tools: structuredClone(input.tools ?? []),
             prompt: input.prompt?.trim() ?? "",
+            ...(input.endpoint !== undefined ? { endpoint: input.endpoint } : {}),
+            ...(input.sources !== undefined ? { sources: structuredClone(input.sources) } : {}),
+            ...(input.version !== undefined ? { version: input.version } : {}),
             createdAt: now,
           },
         ],
