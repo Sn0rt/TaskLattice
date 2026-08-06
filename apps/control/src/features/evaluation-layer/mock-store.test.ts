@@ -54,30 +54,32 @@ describe("EvaluationLayerStore", () => {
     expect(store.getState().settings.activeTargetId).toBe(targetId);
   });
 
-  it('preserves the legacy Target configuration scope in mock revisions', () => {
+  it('defaults a created target to the agent kind and stores agent scope', () => {
     let sequence = 0;
     const store = createEvaluationLayerStore(cloneEvaluationLayerFixtures(), {
-      id: () => `legacy-target-${sequence++}`,
+      id: () => `agent-target-${sequence++}`,
       now: () => '2026-08-05T10:00:00.000Z',
     });
     const tool = store.getState().targetRevisions[1]!.tools[0]!;
 
     const result = store.createTarget({
-      name: 'Legacy-compatible target',
-      description: 'Model, prompt and resources',
+      name: 'Agent-compatible target',
+      description: 'Model, prompt and tools',
       model: 'gpt-5-mini',
       prompt: 'Follow the permission policy.',
       tools: [tool],
-      mcpServers: [{ id: 'mcp-1', name: 'Operations MCP' }],
-      knowledgeBases: [{ id: 'kb-1', name: 'Policy KB' }],
     });
 
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    const target = store.getState().targets.find(
+      (item) => item.id === result.value.targetId,
+    )!;
+    expect(target.kind).toBe('agent');
     const revision = store.getState().targetRevisions.at(-1)!;
+    expect(revision.kind).toBe('agent');
     expect(revision.prompt).toBe('Follow the permission policy.');
     expect(revision.tools).toHaveLength(1);
-    expect(revision.mcpServers?.[0]?.name).toBe('Operations MCP');
-    expect(revision.knowledgeBases?.[0]?.name).toBe('Policy KB');
   });
 
   it('stores Dataset schema, completes Tool coverage and shares Dataset context', () => {

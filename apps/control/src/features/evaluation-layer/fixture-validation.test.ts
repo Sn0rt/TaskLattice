@@ -6,6 +6,24 @@ import {
 } from "./fixture-validation";
 
 describe("Evaluation layer fixtures", () => {
+  it("requires every target and revision to declare a supported kind", () => {
+    const state = cloneEvaluationLayerFixtures();
+    for (const target of state.targets) {
+      expect(["agent", "mcp", "kb", "skill"]).toContain(target.kind);
+    }
+    for (const revision of state.targetRevisions) {
+      expect(["agent", "mcp", "kb", "skill"]).toContain(revision.kind);
+    }
+  });
+
+  it("rejects targets whose revision kind does not match", () => {
+    const state = cloneEvaluationLayerFixtures();
+    state.targets[0]!.kind = "kb";
+    expect(validateEvaluationLayerState(state)).toContain(
+      `targets.${state.targets[0]!.id}.kind: revision kind mismatch`,
+    );
+  });
+
   it("form one valid Target-to-Trace graph", () => {
     expect(validateEvaluationLayerState(evaluationLayerFixtures)).toEqual([]);
     expect(evaluationLayerFixtures.targets).not.toHaveLength(0);

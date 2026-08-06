@@ -1,5 +1,8 @@
+export type EvaluationLayerTargetKind = "agent" | "mcp" | "kb" | "skill";
+
 export interface EvaluationLayerTarget {
   id: string;
+  kind: EvaluationLayerTargetKind;
   name: string;
   description: string;
   /** Agent Garden catalog icon key (e.g. "briefcase", "headphones"). */
@@ -26,13 +29,15 @@ export interface EvaluationLayerTool {
 export interface EvaluationLayerTargetRevision {
   id: string;
   targetId: string;
+  kind: EvaluationLayerTargetKind;
   revision: number;
-  model: string;
-  adapter: string;
-  tools: EvaluationLayerTool[];
+  model?: string;
+  adapter?: string;
   prompt?: string;
-  mcpServers?: EvaluationLayerResource[];
-  knowledgeBases?: EvaluationLayerResource[];
+  endpoint?: string;
+  sources?: EvaluationLayerResource[];
+  version?: string;
+  tools: EvaluationLayerTool[];
   createdAt: string;
 }
 

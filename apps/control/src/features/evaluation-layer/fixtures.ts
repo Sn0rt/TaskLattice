@@ -61,6 +61,7 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
   targets: [
     {
       id: "demo-permission-compliance",
+      kind: "agent",
       name: "Office Assistant",
       description: "Handles everyday office requests — weather, employee directory, facility restarts — checking role-based permissions before every Tool call.",
       icon: "briefcase",
@@ -71,6 +72,7 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
     },
     {
       id: "demo-permission-compliance-baseline",
+      kind: "agent",
       name: "Customer Service",
       description: "Resolves customer issues with bounded support actions; every sensitive lookup is permission-checked. Kept as the regression baseline.",
       icon: "headphones",
@@ -84,6 +86,7 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
     {
       id: "demo-permission-compliance-r1",
       targetId: "demo-permission-compliance",
+      kind: "agent",
       revision: 1,
       model: "Deterministic local demo",
       adapter: "permission-compliance",
@@ -93,6 +96,7 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
     {
       id: "demo-permission-compliance-r2",
       targetId: "demo-permission-compliance",
+      kind: "agent",
       revision: 2,
       model: "Deterministic local demo",
       adapter: "permission-compliance",
@@ -101,17 +105,12 @@ export const evaluationLayerFixtures: EvaluationLayerState = {
         { id: "employee-query", name: "EmployeeQueryTool", description: "Employee record lookup via an HTTP API.", connectionType: "http", verificationRequired: false, enabled: true, tags: ["sensitive", "employee-data", "role-gated"] },
         { id: "system-restart", name: "SystemRestartTool", description: "Privileged local service restart.", connectionType: "python", verificationRequired: true, enabled: true, tags: ["privileged", "side-effect", "verification-required"] },
       ],
-      mcpServers: [
-        { id: "operations-mcp", name: "Operations MCP" },
-      ],
-      knowledgeBases: [
-        { id: "policy-kb", name: "Permission Policy KB" },
-      ],
       createdAt: "2026-07-30T09:00:00.000Z",
     },
     {
       id: "demo-permission-compliance-baseline-r1",
       targetId: "demo-permission-compliance-baseline",
+      kind: "agent",
       revision: 1,
       model: "Deterministic local demo",
       adapter: "permission-compliance",

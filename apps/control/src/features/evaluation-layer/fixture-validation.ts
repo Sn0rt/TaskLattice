@@ -23,6 +23,12 @@ export function validateEvaluationLayerState(state: EvaluationLayerState): strin
     requireReference(`targets.${target.id}.currentRevisionId`, target.currentRevisionId, targetRevisionIds);
     const revision = state.targetRevisions.find((item) => item.id === target.currentRevisionId);
     if (revision?.targetId !== target.id) errors.push(`targets.${target.id}.currentRevisionId: ${target.currentRevisionId}`);
+    if (!["agent", "mcp", "kb", "skill"].includes(target.kind)) {
+      errors.push(`targets.${target.id}.kind: ${target.kind}`);
+    }
+    if (revision?.kind !== target.kind) {
+      errors.push(`targets.${target.id}.kind: revision kind mismatch`);
+    }
   }
   for (const revision of state.targetRevisions) requireReference(`targetRevisions.${revision.id}.targetId`, revision.targetId, targetIds);
   for (const dataset of state.datasets) {

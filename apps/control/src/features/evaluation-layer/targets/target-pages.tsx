@@ -86,8 +86,6 @@ function configurationSummary(revision: ReturnType<typeof useEvaluationLayerStat
   const parts = ['Model'];
   if (revision.prompt?.trim()) parts.push('Prompt');
   if (revision.tools.length) parts.push(`${revision.tools.length} Tools`);
-  if (revision.mcpServers?.length) parts.push(`${revision.mcpServers.length} MCP`);
-  if (revision.knowledgeBases?.length) parts.push(`${revision.knowledgeBases.length} KB`);
   return parts.length === 1 ? 'Model only' : parts.join(' · ');
 }
 
@@ -147,8 +145,8 @@ function TargetEditor({
   const [model, setModel] = useState(revision?.model ?? 'gpt-5-mini');
   const [prompt, setPrompt] = useState(revision?.prompt ?? '');
   const [toolIds, setToolIds] = useState(revision?.tools.map((item) => item.id) ?? []);
-  const [mcpIds, setMcpIds] = useState(revision?.mcpServers?.map((item) => item.id) ?? []);
-  const [kbIds, setKbIds] = useState(revision?.knowledgeBases?.map((item) => item.id) ?? []);
+  const [mcpIds, setMcpIds] = useState<string[]>([]);
+  const [kbIds, setKbIds] = useState<string[]>([]);
   const [error, setError] = useState('');
   const selectedTools = toolCatalog.filter((item) => toolIds.includes(item.id));
   const selectedMcp = mcpCatalog.filter((item) => mcpIds.includes(item.id));
@@ -160,8 +158,6 @@ function TargetEditor({
       model,
       prompt,
       tools: selectedTools,
-      mcpServers: selectedMcp,
-      knowledgeBases: selectedKb,
     };
     if (targetId) {
       const result = store.createTargetRevision(targetId, input);
@@ -227,11 +223,12 @@ export function EvaluationTargetList() {
   const [filter, setFilter] = useState<(typeof targetFilters)[number]>('All targets');
   const rows = state.targets.filter((target) => {
     const revision = state.targetRevisions.find((item) => item.id === target.currentRevisionId)!;
-    if (filter === 'Model only') return !revision.prompt?.trim() && !revision.tools.length && !revision.mcpServers?.length && !revision.knowledgeBases?.length;
+    if (filter === 'Model only') return !revision.prompt?.trim() && !revision.tools.length;
     if (filter === 'With Prompt') return Boolean(revision.prompt?.trim());
     if (filter === 'With Tools') return Boolean(revision.tools.length);
-    if (filter === 'With MCP') return Boolean(revision.mcpServers?.length);
-    if (filter === 'With KB') return Boolean(revision.knowledgeBases?.length);
+    // Binding-based MCP/KB filters are removed; kinds replace them (Task 4).
+    if (filter === 'With MCP') return false;
+    if (filter === 'With KB') return false;
     return true;
   });
   // Live-monitoring demo: most recently active Agents float to the top.
@@ -310,8 +307,8 @@ export function EvaluationTargetDetail({ targetId }: { targetId: string }) {
   const latest = reportRows[0];
   const delegatedAgents = current.tools.filter((tool) => tool.connectionType === 'agent');
   const directTools = current.tools.filter((tool) => tool.connectionType !== 'agent');
-  const mcpServers = current.mcpServers ?? [];
-  const knowledgeBases = current.knowledgeBases ?? [];
+  const mcpServers: EvaluationLayerResource[] = [];
+  const knowledgeBases: EvaluationLayerResource[] = [];
   const renderToolTable = (tools: EvaluationLayerTool[]) => (
     <EvaluationTable><thead><tr><th>Name</th><th>Description</th><th>Status</th><th>Tags</th></tr></thead><tbody>{tools.map((tool) => <tr key={tool.id}><td className='font-medium'>{tool.name}</td><td>{tool.description}</td><td>{tool.enabled ? 'Enabled' : 'Disabled'}</td><td>{tool.tags.join(', ')}</td></tr>)}</tbody></EvaluationTable>
   );

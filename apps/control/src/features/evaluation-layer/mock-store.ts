@@ -8,6 +8,7 @@ import type {
   EvaluationLayerRun,
   EvaluationLayerSettings,
   EvaluationLayerState,
+  EvaluationLayerTargetKind,
   EvaluationLayerTargetRevision,
   EvaluationLayerTrace,
 } from "./model";
@@ -32,16 +33,15 @@ export interface EvaluationLayerDependencies {
 export interface CreateTargetInput {
   name: string;
   description: string;
-  model: string;
+  kind?: EvaluationLayerTargetKind;
+  model?: string;
   adapter?: string;
   prompt?: string;
   tools?: EvaluationLayerTargetRevision['tools'];
-  mcpServers?: EvaluationLayerTargetRevision['mcpServers'];
-  knowledgeBases?: EvaluationLayerTargetRevision['knowledgeBases'];
 }
 
 export type TargetRevisionInput = Partial<
-  Pick<EvaluationLayerTargetRevision, 'model' | 'adapter' | 'tools' | 'prompt' | 'mcpServers' | 'knowledgeBases'>
+  Pick<EvaluationLayerTargetRevision, 'model' | 'adapter' | 'tools' | 'prompt' | 'endpoint' | 'sources' | 'version'>
 >;
 
 export interface CreateDatasetInput {
@@ -604,6 +604,7 @@ export function createEvaluationLayerStore(
       return () => listeners.delete(listener);
     },
     createTarget(input) {
+      const kind = input.kind ?? "agent";
       const name = input.name.trim();
       if (!name) return fail("Agent name is required.", "INVALID_INPUT");
       if (state.targets.some((target) => target.name.toLowerCase() === name.toLowerCase())) {
@@ -618,6 +619,7 @@ export function createEvaluationLayerStore(
           ...snapshot.targets,
           {
             id: targetId,
+            kind,
             name,
             description: input.description.trim(),
             currentRevisionId: revisionId,
@@ -631,13 +633,12 @@ export function createEvaluationLayerStore(
           {
             id: revisionId,
             targetId,
+            kind,
             revision: 1,
-            model: input.model,
+            model: input.model ?? "Deterministic local demo",
             adapter: input.adapter ?? "permission-compliance",
             tools: structuredClone(input.tools ?? []),
             prompt: input.prompt?.trim() ?? "",
-            mcpServers: structuredClone(input.mcpServers ?? []),
-            knowledgeBases: structuredClone(input.knowledgeBases ?? []),
             createdAt: now,
           },
         ],
@@ -656,6 +657,7 @@ export function createEvaluationLayerStore(
         ...current,
         ...structuredClone(input),
         id: revisionId,
+        kind: target.kind,
         revision:
           latestRevisionNumber(
             state.targetRevisions.filter((item) => item.targetId === targetId),
